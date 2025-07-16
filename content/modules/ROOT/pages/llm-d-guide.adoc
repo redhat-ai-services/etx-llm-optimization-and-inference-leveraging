@@ -1,4 +1,4 @@
-= llm-d Technical Overview
+= llm-d Overview
 
 == What It Does
 llm-d transforms traditional single-server LLM deployments into distributed, Kubernetes-native inference systems. The core innovation is disaggregating the inference process into specialized workloads that can be optimized independently:
@@ -22,7 +22,10 @@ llm-d builds on proven open-source technologies while adding advanced distribute
 llm-d requires a robust Kubernetes environment with specialized GPU and networking capabilities. The distributed nature of the system demands high-performance interconnects and sufficient GPU memory for model sharding:
 
 * Kubernetes cluster with GPU nodes
+<== there's no minimum reqs, though it functions best at scale with 10k-20k prompts
+also there's no public benchmark yet
 * Multi-GPU setup (minimum 2x GPUs with 48GB+ VRAM)
+* NVIDIA GPUs 
 * High-speed networking (InfiniBand/RDMA preferred)
 * Persistent storage for model weights
 
@@ -39,13 +42,15 @@ Before deployment, several tools and configurations must be in place. The system
 git clone https://github.com/llm-d/llm-d-deployer.git
 cd llm-d-deployer/quickstart
 export HF_TOKEN="your-token"
+# For pre-requisites
+./install-deps.sh
 ./llmd-installer.sh
 ----
 
 == Key Features
 llm-d implements several advanced optimizations that differentiate it from traditional single-server inference deployments. These features work together to maximize throughput while minimizing resource waste:
 
-* *Prefix caching*: Reuses computed prefixes across requests
+* *vLLM-Optimized Inference Scheduler*: KV-aware "smart"-routing and load balancing via the Endpoint Picker Protocol (EPP).
+* *Disaggregated Prefix caching*: Reuses computed prefixes across requests across nodes.
 * *Session routing*: Routes follow-up requests to same decode worker
-* *Load balancing*: Distributes based on actual capacity, not round-robin
 * *Monitoring*: Built-in Prometheus/Grafana dashboards
