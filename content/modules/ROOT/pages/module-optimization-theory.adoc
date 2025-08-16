@@ -114,6 +114,11 @@ In addition to the improvements described above, it also offers the following ad
 
 === Supported quantization schemes and when to use what?
 
+[IMPORTANT]
+====
+Red Hat Consulting and customers **should not perform custom quantization runs without an existing, validated recipe**. Only use the provided recipes for supported models and quantization schemes. Custom quantization is complex, error-prone and can result in significant accuracy loss or unsupported models.
+====
+
 [cols="1,2,3,4", options="header"]
 |===
 | Format | Description | Use Case(s)| Recommended GPU type
@@ -250,7 +255,21 @@ tokenizer = AutoTokenizer.from_pretrained("your-model")
 *** `actorder` sets the activation ordering. When compressing the weights of a layer, the order in which channels are quantized matters. Setting `actorder="weight"` can improve accuracy without added latency.
 
 * Applying quantization
-**  Use oneshot API and provide the recipies to quantize and/or apply sparsity to the model given a dataset
+
+** After preparing your calibration data and tuning the key quantization hyperparameters, the next step is to actually apply quantization to your model. The recommended and most reliable way to do this is by using the **oneshot** API provided by LLM Compressor. This approach ties together all the previous steps—model loading, calibration and quantization—into a single, reproducible workflow driven by a recipe file. 
+
+=== Oneshot Quantization
+
+The **oneshot** entrypoint in LLM Compressor provides a streamlined, recipe-driven approach to quantization. It applies a pre-defined quantization method (such as GPTQ, AWQ, or SmoothQuant) to a model in a single step, using a calibration dataset and configuration specified in the recipe. Technically, oneshot:
+
+* Loads the model and calibration data
+* Applies the quantization method as defined in the recipe (e.g., GPTQ for weight quantization, SmoothQuant for activation smoothing)
+* Calibrates quantization parameters (scales, zero points) in one pass
+* Exports the quantized model for deployment
+
+This approach ensures reproducibility and minimizes the risk of accuracy loss, as all parameters and steps are controlled by the recipe. **Do not attempt manual or custom quantization without a validated recipe.**
+
+Shown below is an example of how to use oneshot API and provide the recipies to quantize and/or apply sparsity to the model given a dataset
 [source,python]
 ----
 from llmcompressor import oneshot
