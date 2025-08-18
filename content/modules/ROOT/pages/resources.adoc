@@ -1,0 +1,94 @@
+:imagesdir: ../assets/images
+
+[#resources]
+= LLM Compressor, Model Quantization and Sparsification techniques and recipes
+
+== Existing slides
+
+. LLM compressor walkthrough +
+https://docs.google.com/presentation/d/16ZbZh4dm_4FZ6drgHwfTSn-KHhkzWNqD9RKnwtWROWU/edit?slide=id.p#slide=id.p[^]
+
+== Existing lab resources
+
+. Summit lab for LLM compression +
+https://rhpds.github.io/showroom-summit2025-lb2959-neural-magic/modules/index.html[^]
+
+
+== Potential Topics to Cover in the Lab
+
+[#llm_compressor]
+=== LLM-Compressor
+
+* Understanding why you SHOULD NOT quantize your own model (and the small number of use cases where you should)
+* Compressing a model using an existing recipe
+
+= LLM evaluation with GuideLLM
+
+== Existing lab resources
+
+. GuideLLM notebook and lab +
+https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/rhoai_deploy/rhoai_query.html[^]
+
+. Link to Git repo with code +
+https://github.com/RedHatQuickCourses/genai-apps.git[^]
+
+. Performance benchmarking with GuideLLM + 
+https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/rhoai_deploy/guide_llm.html[^]
+
+. evals_workshop +
+https://github.com/taylorjordanNC/evals_workshop[^]
+
+== Potential Topics to Cover in the Lab
+
+[#load_testing]
+=== Running Load Tests with GuideLLM
+
+* Understanding common LLM metrics
+* Configuring --max-num-seqs based on performance tests
+
+# Guide with Resources
+
+https://docs.google.com/document/d/1W4-oUkftWhDcyDl78UZpaGKEbsVKj-KCLqwPqTrHfQc/edit?usp=sharing
+
+= Inference Server on Multiple Platforms
+
+== Existing lab resources
+
+. RH Inference server on multiple platforms +
+https://github.com/redhat-ai-services/inference-service-on-multiple-platforms[^]
+
+. RH Inference server tutorial +
+https://docs.google.com/document/d/11-Oiomiih78dBjIfClISSQBKqb0Ij4UJg31g0dO5XIc/edit?usp=sharing[^]
+
+== Potential Topics to Cover in the Lab
+
+== Existing Slides
+
+. PSAP LLM Performance Benchmarking - July 11 2025 +
+https://docs.google.com/presentation/d/1IXReNsWRUcy1C9nGsnnhkG_H-OG5UQ2nYS2KmrXr340/edit?usp=sharing[^]
+
+== Existing lab resources
+
+. Training: vLLM Master Class: +
+https://redhat-ai-services.github.io/vllm-showroom/modules/index.html[^]
+
+. Training: Optimizing vLLM for RHEL AI and OpenShift AI: +
+https://rhpds.github.io/showroom-summit2025-lb2959-neural-magic/modules/index.html[^]
+
+. RH Inference server docs - key vLLM serving arguments +
+https://docs.redhat.com/en/documentation/red_hat_ai_inference_server/3.1/html-single/vllm_server_arguments/index#key-server-arguments-server-arguments
+
+. vLLM: Optimizing and Serving Models on OpenShift AI
+https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/index.html
+
+== Potential Topics to Cover in the Lab
+
+[#secure_vllm_endpoints]
+=== Securing vLLM Endpoints
+
+* Managing service accounts for other apps
+
+[#troubleshooting]
+=== Troubleshooting vLLM instances
+
+* Where to find events/logs

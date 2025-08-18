@@ -6,7 +6,7 @@ nav:
 
 asciidoc:
   attributes:
-    lab_name: "LLM optimization and inferencing"
+    lab_name: "LLM Optimization and Inferencing"
     release-version: master
     page-pagination: true
     my_var: "foo"

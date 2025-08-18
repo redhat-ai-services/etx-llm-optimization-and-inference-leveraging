@@ -1,0 +1,21 @@
+:imagesdir: ../assets/images
+
+[#eval-intro]
+# Model Evaluation Module
+Accuracy scores and leaderboard metrics can seem impressive, but production-grade AI demands more. True success comes from evaluating models in real-world scenarios, where performance, reliability, and user satisfaction are non-negotiable.
+
+## In This Workshop
+In this hands-on, example-driven lab, you’ll move beyond leaderboard metrics to explore:
+
+* System-level benchmarking with GuideLLM
+* Task-level accuracy evaluation with lm-eval-harness
+
+By the end of this hands-on experience, you’ll know how to:
+
+- Setup and use GuideLLM via a tekton pipeline to evaluate model performance
+
+- Setup and use lm-eval harness via TrustyAI to evaluate model accuracy
+
+- Interpret results meaningfully across metrics like accuracy, throughput, and latency.
+
+- Adjust tooling variables to align LLM behavior with production SLAs and expectations

@@ -1,0 +1,68 @@
+:imagesdir: ../assets/images
+[#optimization-intro]
+= Module 3: vLLM Performance Optimization
+
+== Introduction
+
+With your LLM deployed and benchmarked, it's time to optimize performance for real-world production workloads. This module focuses on maximizing inference efficiency using vLLM tuning techniques that can dramatically improve latency and throughput without requiring additional hardware.
+
+Performance optimization is critical because:
+
+* **User Experience**: Sub-second response times are essential for interactive applications like chatbots and coding assistants
+* **Cost Efficiency**: Better performance means serving more users with the same infrastructure, directly reducing per-request costs
+* **Scalability**: Optimized models can handle higher concurrent loads without degradation
+* **Resource Utilization**: Proper tuning maximizes GPU utilization and minimizes memory waste
+
+== Learning Objectives
+
+By the end of this module, you will be able to:
+
+* Understand key vLLM performance parameters and their impact on latency/throughput
+* Apply systematic optimization techniques to reduce Time To First Token (TTFT)
+* Configure memory management and batching for optimal resource utilization  
+* Implement performance tuning strategies for chat applications with concurrent users
+* Measure and validate optimization improvements using real-world benchmarks
+
+== What You'll Learn
+
+=== Performance Fundamentals
+* **Latency vs Throughput**: Understanding the trade-offs and when to optimize for each
+* **Time To First Token (TTFT)**: The critical metric for interactive user experience
+* **Memory Management**: KV cache optimization and efficient GPU memory utilization
+* **Batching Strategies**: Dynamic batching and continuous batching for concurrent requests
+
+=== vLLM Configuration Mastery
+* **Engine Parameters**: `max_model_len`, `max_num_seqs`, `block_size` and their performance impact
+* **Attention Mechanisms**: PagedAttention configuration for memory efficiency
+* **Scheduling**: Request scheduling and queue management optimization
+* **GPU Utilization**: Maximizing hardware efficiency through proper configuration
+
+=== Real-World Case Study
+You'll work through a practical scenario: optimizing granite-3.3-8b-instruct for a chat application serving 32 concurrent users with sub-2048 token responses. This hands-on experience mirrors real production optimization challenges.
+
+== Module Structure
+
+=== 3.1 Performance Tuning Practice
+Hands-on optimization of granite-3.3-8b-instruct with systematic parameter tuning, performance measurement, and iterative improvement to achieve optimal latency for chat workloads.
+
+=== 3.2 Optimization Conclusion  
+Review optimization results, best practices summary, and guidelines for applying these techniques to different models and use cases in production environments.
+
+== Prerequisites
+
+Before starting this module, ensure you have:
+* Completed Module 1 (Deployment) and Module 2 (Evaluation) 
+* Access to an OpenShift cluster with GPU resources
+* Basic understanding of inference serving concepts
+* GuideLLM benchmarking experience from Module 2
+
+== Success Metrics
+
+By module completion, you should achieve:
+* **Measurable TTFT improvement**: Reduce time to first token by 20-50%
+* **Increased throughput**: Handle more concurrent requests with the same hardware
+* **Optimized resource usage**: Achieve >80% GPU utilization during peak loads
+* **Production readiness**: Understand how to apply these techniques to your specific use cases
+
+Let's begin optimizing your LLM inference performance!
+

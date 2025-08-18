@@ -1,0 +1,57 @@
+:imagesdir: ../assets/images
+[#optimization-conclusion]
+= Module 3 Conclusion: vLLM Optimization Mastery
+
+== What You've Accomplished
+
+You've mastered vLLM performance optimization techniques through hands-on granite-3.3-8b-instruct tuning, gaining practical experience with parameters that directly impact production performance.
+
+## Key Techniques & Results
+
+**Parameters Mastered**:
+- `max_model_len`, `max_num_seqs`, `block_size`, `gpu_memory_utilization`
+- KV cache configuration and PagedAttention tuning
+- Dynamic batching and queue management
+
+**Typical Performance Gains**:
+- **TTFT**: 20-50% improvement (target: <200ms)
+- **Throughput**: 25-75% increase in requests/second  
+- **Cost**: 30-50% reduction per request
+- **GPU Utilization**: >80% during peak loads
+
+## Production Application
+
+### Optimization Methodology
+1. Baseline measurement → 2. Single parameter changes → 3. Load testing → 4. Monitoring
+
+### Parameter Selection by Use Case
+- **Latency-critical**: Prioritize TTFT, smaller batches
+- **Throughput-focused**: Maximize concurrent requests, optimize batching
+- **Cost-optimized**: Maximize GPU utilization, intelligent scaling
+
+### Common Client Scenarios
+- **High latency** (TTFT >500ms): Memory bandwidth optimization → 40-60% improvement
+- **Low throughput**: Batching optimization → 50-100% increase
+- **Resource waste** (<60% GPU): Parameter rebalancing → 20-40% cost reduction
+
+## Business Value Framework
+
+**Cost Impact**: `Cost Savings = (Original GPU Hours - Optimized GPU Hours) × Hourly Rate`
+
+**Client Engagement**:
+- **Discovery**: Identify bottlenecks, quantify opportunities
+- **PoC**: Demonstrate improvements, establish baselines
+- **Production**: Apply methodology, implement monitoring
+
+## Integration with Module 4
+
+Your optimization foundation enables quantization success:
+- **Performance baseline** for measuring quantization impact
+- **Memory management skills** essential for compressed models  
+- **Throughput optimization** compounds with quantization gains
+
+## Key Takeaway
+
+The systematic approach developed here - measure, optimize, validate, monitor - applies across all LLM deployment aspects and prepares you for Module 4's advanced model compression techniques.
+
+**Ready for quantization?** Your optimized vLLM foundation will amplify the transformative impact of model compression.

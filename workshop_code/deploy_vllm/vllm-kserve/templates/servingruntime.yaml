@@ -1,0 +1,41 @@
+{{- if not (quote .Values.servingRuntime.useExisting | empty) }}
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  annotations:
+    {{- toYaml .Values.servingRuntime.annotations | nindent 4 }}
+  name: {{ include "vllm-kserve.servingRuntimeName" . }}
+  labels:
+    {{- include "vllm-kserve.labels" . | nindent 4 }}
+spec:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: '8080'
+  containers:
+    - name: kserve-container
+      image: {{ include "vllm-kserve.image" . }}
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      command:
+        - python
+        - '-m'
+        - vllm.entrypoints.openai.api_server
+      args:
+        {{- toYaml .Values.servingRuntime.args | nindent 8 }}
+      env:
+        - name: HF_HOME
+          value: /tmp/hf_home
+      volumeMounts:
+        - mountPath: /dev/shm
+          name: shm
+  multiModel: false
+  supportedModelFormats:
+    - autoSelect: true
+      name: vLLM
+  volumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: {{ .Values.servingRuntime.shmSize }}  
+{{- end }}

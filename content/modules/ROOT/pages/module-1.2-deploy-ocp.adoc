@@ -1,0 +1,62 @@
+:imagesdir: ../assets/images
+[#deploy-ocp]
+= Deploying RH Inference Server on OpenShift
+
+In this module, we will use Helm to deploy RH Inference Server on OpenShift. The chart we will use deploys [vLLM](https://docs.vllm.ai/en/latest/), defaulting to using the [Red Hat AI Inference Server](https://docs.redhat.com/en/documentation/red_hat_ai_inference_server) official image.
+
+== Prerequisites
+
+* An OpenShift cluster with NVIDIA GPUs available (by default, configurable) and configured properly (e.g. the NVIDIA
+  GPU Operator). This is provided in the lab environment.
+  ** This cluster should be your current context, e.g. you see the correct cluster when you run `oc whoami --show-server`
+  ** You need permission to create Namespaces and consume GPUs, but do not require higher privilege to deploy these
+    charts
+
+== Deploy the RHAIIS Chart
+
+The chart is not currently published to a [Helm repository](https://helm.sh/docs/topics/chart_repository/) as it is quickly evolving. We will deploy manually via the workshop repository.
+
+To deploy the `rhaiis_ocp` chart, you need to update the dependencies (since the charts are not published):
+
+[source,sh,role=execute]
+----
+helm dependency update charts/chat
+----
+
+Then, you can deploy the defaults quickly:
+
+[source,sh,role=execute]
+----
+helm upgrade --install -n rhaiis --create-namespace rhaiis workshop_code/deploy_vllm/rhaiis_ocp
+----
+
+== Customization
+
+The defaults for the chart is enough for a normal, default installation of OpenShift with GPU nodes configured
+in the most common ways.
+
+If you would like to change the model that is served, change the storage method for the model, operate on a pre-downloaded model, or other customizations, you should use [Helm
+values](https://helm.sh/docs/chart_template_guide/values_files/) to override the defaults. 
+
+== Verify Deployment
+
+// TODO:
+// get route / model endpoint
+// test completions endpoint
+// curl -X POST https://<route-url>/v1/completions \
+//   -H "Content-Type: application/json" \
+//   -d '{
+//     "model": "<your-model-name>",
+//     "prompt": "What is OpenShift?",
+//     "max_tokens": 50,
+//     "temperature": 0.7
+//   }'
+
+== Uninstall Deployment
+
+In subsequent modules, we will use a vllm-kserve deployment to interact with the model served by vLLM. 
+
+[source,sh,role=execute]
+----
+helm uninstall rhaiis -n rhaiis
+----
