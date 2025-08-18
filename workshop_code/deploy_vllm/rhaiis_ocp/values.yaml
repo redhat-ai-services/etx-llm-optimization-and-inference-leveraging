@@ -1,0 +1,120 @@
+---
+replicaCount: 1
+
+image:
+  registry: registry.redhat.io
+  repository: rhaiis/vllm-cuda-rhel9
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+configuration:
+  env: {}
+  modelReference: ibm-granite/granite-3.3-2b-instruct  # if using a modelcar image, this will be used to set the model name, so should be changed in tandem
+  extraArgs: []
+  shm:
+    size: 2Gi
+  hfModelDownload:
+    enabled: true
+    huggingfaceToken: ""
+  modelStorage:
+    rootDir: /opt/app-root/src
+    type: pvc  # type can be one of pvc, image, or emptyDir
+    size: 20Gi
+    emptyDir: {}
+    pvc:
+      accessModes:
+        - ReadWriteOnce
+    image:
+      type: modelCar # type can be modelCar (OCI artifact support will come in a future chart version)
+      reference: ""
+      pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+deploymentStrategy:
+  type: Recreate
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+monitoring:
+  enabled: true
+
+podAnnotations: {}
+
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  # fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+service:
+  type: ClusterIP
+  port: 8000
+
+route:
+  enabled: false
+  annotations: {}
+  tls:
+    enabled: true
+    insecureEdgeTerminationPolicy: Redirect
+  subdomain: ""
+
+resources:
+  limits:
+    cpu: 4
+    memory: 16Gi
+    nvidia.com/gpu: 1
+  requests:
+    cpu: 2
+    memory: 8Gi
+    nvidia.com/gpu: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  failureThreshold: 2
+  periodSeconds: 60
+  timeoutSeconds: 3
+readinessProbe:
+  httpGet:
+    path: /v1/models
+    port: http
+  failureThreshold: 3
+  periodSeconds: 30
+  timeoutSeconds: 3
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  failureThreshold: 180
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+nodeSelector: {}
+
+tolerations:
+  - key: nvidia.com/gpu
+    effect: NoSchedule
+    operator: Exists
+
+affinity: {}

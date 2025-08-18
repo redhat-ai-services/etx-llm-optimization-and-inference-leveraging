@@ -1,7 +1,7 @@
 ---
 site:
   title: LLM optimization and inference leveraging
-  url: https://redhat-scholars.github.io/course-template
+  # url: https://taylorjordanNC.github.io/etx-llm-optimization-and-inference-leveraging
   start_page: modules::index.adoc
 
 content:

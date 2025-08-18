@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: guidellm-wb
+  namespace: rhaiis-evals
+spec:
+  to:
+    kind: Service
+    name: guidellm-wb
+  port:
+    targetPort: http
+  # Optional TLS:
+  # tls:
+  #   termination: edge

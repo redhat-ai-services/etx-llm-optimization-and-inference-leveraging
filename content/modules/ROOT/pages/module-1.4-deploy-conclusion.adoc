@@ -1,0 +1,10 @@
+[#deploy-conclusion]
+= Conclusion to Deployment Exercises
+
+== Understanding the right deployment platform for RHAIIS for your use case
+
+**Platform Selection Guide:**
+
+* **Choose RHEL when**: Edge computing, bare metal deployments, single-node inference, direct hardware control, minimal overhead, or air-gapped environments
+* **Choose OpenShift when**: Multi-node clusters, horizontal scaling, containerized workloads, DevOps integration, or cloud-native architectures  
+* **Choose OpenShift AI when**: Data science workflows, MLOps pipelines, managed model serving, enterprise governance, or integrated AI platform features

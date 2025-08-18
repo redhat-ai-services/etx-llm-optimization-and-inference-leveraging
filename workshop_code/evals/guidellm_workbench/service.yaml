@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: guidellm-wb
+  namespace: rhaiis-evals
+spec:
+  selector: { app: guidellm-wb }
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

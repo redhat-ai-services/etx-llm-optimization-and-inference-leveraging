@@ -1,0 +1,439 @@
+:imagesdir: ../assets/images
+
+[#eval-performance]
+# Evaluating System Performance with GuideLLM
+
+In Generative AI systems, evaluating system performance including latency, throughput, and resource utilization is just as important as evaluating model accuracy or quality. Here's why:
+
+. **User Experience**: High latency leads to sluggish interactions, which is unacceptable in chatbots, copilots, and real-time applications. Users expect sub-second responses.
+
+. **Scalability**: Throughput determines how many requests a system can handle in parallel. For enterprise GenAI apps, high throughput is essential to serve multiple users or integrate with high-frequency backend processes.
+
+. **Cost Efficiency**: Slow or inefficient systems require more compute to serve the same volume of requests. Optimizing performance directly reduces cloud GPU costs and improves ROI.
+
+. **Fair Benchmarking**: A model may appear “better” in isolated evaluation, but if it requires excessive inference time or hardware, it may not be viable in production. True model evaluation must balance quality and performance.
+
+. **Deployment Readiness**: Latency and throughput impact architectural decisions (e.g., batching, caching, distributed serving). Measuring them ensures a model is viable under real-world constraints.
+
+## What is GuideLLM?
+
+GuideLLM is a toolkit for evaluating and optimizing the deployment of LLMs. By simulating real-world inference workloads, GuideLLM enables you to easily assess the performance, resource requirements, and cost implications of deploying LLMs on various hardware configurations. This approach ensures efficient, scalable, and cost-effective LLM inference serving while maintaining high service quality.
+
+GuideLLM is now officially a part of the vLLM upstream project. This toolset is one of the primary ways Red Hat internal teams are benchmarking customer models. GuideLLM will be the main framework we will recommend to our customers with the scope of model performance and optimization. 
+
+### Trusty AI vs GuideLLM
+
+Trusty AI maintains the scope of responsable AI, while GuideLLM is focused on benchmarking and model optimization. That being said, there are some current crossovers. Trusty AI incorporates lm-eval-harness and GuideLLM is roadmapped to include this test harness as well. Trusty AI will continue to be an incorporated and supported operator deployment in RHOAI. There are currently no plans to have a similar deployment method for GuideLLM. 
+
+## Set Up GuideLLM tekton pipeline
+
+There are several current ways you may deploy and use GuideLLM.
+
+* CLI tool: documented in the upstream project.
+* Python library: Not yet in current upstream documentation. You can see an example here in this guide: https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/rhoai_deploy/guide_llm.html. 
+* Kubernetes job: https://github.com/rh-aiservices-bu/guidellm-pipeline 
+* Tekton pipeline: https://github.com/rh-aiservices-bu/guidellm-pipeline 
+
+For our lab today, we will utilize the tekton pipeline on our OpenShift AI cluster. A pipeline deployment provides the following benefits:
+
+* Automation and reproducibility
+* Cloud-native / kubernetes-native
+* Scalability and resource optimization: benchmarking can be resource intensive particularly when simulating high loads or testing large models. The dynamic provisioning/de-provisioning of necessary resources with tekton can handle this well which is particularly critical for the expensive compute
+* Modular
+* Integration with existing MLOps workflows
+* Version control / auditability
+* Better handling of complex, multi-stage workflows
+
+First, apply the task and pipeline.
+
+[source,console,role=execute,subs=attributes+]
+----
+oc apply -f tekton-task.yaml
+oc apply -f tekton-pipeline.yaml
+----
+
+Before running the pipeline, let's review the options for GuideLLM more closely.
+
+## GuideLLM Arguments
+
+* Peruse the available GuideLLM https://github.com/neuralmagic/guidellm?tab=readme-ov-file#configurations[configuration options]. 
+* The GitHub ReadMe gives detailed information about configuration flags
+
+### Input/Output tokens
+For different use cases, you can set different standardized dataset profiles that can be passed in as arguments in GuideLLM. For example, the following variables represent input and output tokens, respectively, based on the given use case: 
+
+* **Chat (512/256)**
+* **RAG (4096/512)**
+* **Summarization (1024/256)**
+* **Code Generation (512/512)**
+
+Using these profiles, we can map specific i/o token scenarios to real-world use cases to make these runs more explainable to how this impacts applications.
+
+### --rate-type
+
+**--rate-type** defines the type of benchmark to run. By default GuideLLM will do a sweep of available benchmarks, but you may choose to isolate specific benchmark tests. 
+
+* synchronous: Runs a single stream of requests one at a time. --rate must not be set for this mode.
+* throughput: Runs all requests in parallel to measure the maximum throughput for the server (bounded by GUIDELLM__MAX_CONCURRENCY config argument). --rate must not be set for this mode.
+* concurrent: Runs a fixed number of streams of requests in parallel. --rate must be set to the desired concurrency level/number of streams.
+* constant: Sends requests asynchronously at a constant rate set by --rate.
+* poisson: Sends requests at a rate following a Poisson distribution with the mean set by --rate.
+* sweep: Automatically determines the minimum and maximum rates the server can support by running synchronous and throughput benchmarks, and then runs a series of benchmarks equally spaced between the two rates. The number of benchmarks is set by --rate (default is 10).
+
+### --data
+
+GuideLLM has a default dataset it uses if you do not specify anything specific. However, the dataset you use should align with the customer use case you are working on.
+
+## Use-Case Specific Data Requirements
+
+### Training vs Production Data
+
+**This training uses emulated data** for consistency:
+```json
+{"type":"emulated","prompt_tokens":512,"output_tokens":128}
+```
+
+**For client engagements**, use representative data for accurate performance evaluation.
+
+### Why Client Data Matters
+
+Real workloads differ significantly from stock data:
+
+- **Token distribution**: Customer support (50-200 tokens typical) vs RAG (4K+ tokens)
+- **Response variability**: Fixed 128 tokens vs 50-800 token range in production
+- **Processing patterns**: Math reasoning vs creative writing stress different components
+
+**Performance Impact**: Real data typically shows 25-40% higher latency variance and 2-5x difference in P99 metrics.
+
+### Production Evaluation Approach
+
+1. **Baseline**: Use stock data for initial estimates
+2. **Validation**: Test with client sample data
+3. **Production**: Use historical logs for final sizing
+
+**Client Data Collection**:
+```json
+{
+  "type": "file",
+  "path": "/path/to/client_sample.jsonl",
+  "sample_size": 1000
+}
+```
+
+### Technical Consulting Guidelines
+
+**During Discovery**:
+- Request sample queries (80% typical usage)
+- Identify peak patterns and edge cases
+
+**During PoC**:
+- Start with stock data for baseline
+- Compare with client data to quantify differences
+- Plan 20-30% performance buffer
+
+**Stock Data Limitations**:
+- **Tests well**: Infrastructure capacity, relative comparisons, scaling
+- **Misses**: Real workload complexity, traffic variations, domain-specific patterns
+
+**Key Takeaway**: Stock data for learning; client data for production recommendations.
+
+## Execute the pipeline
+
+Run the pipeline with necessary parameters. If you chose a different model adjust the target parameter. 
+
+[source,console,role=execute,subs=attributes+]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-vllm-kserve \               
+  --param processor=ibm-granite/granite-3.3-8b-instruct \       
+  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":128}' \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc  
+----
+
+### Evaluate Output and Adjust GuideLLM Settings
+
+GuideLLM captures the following metrics during a full sweep:
+
+. **Requests per Second**: Total requests completed per second
+
+. **Request concurrency**: average concurrent requests
+
+. **Output token per second (mean)**: output tokens per second
+
+. **Total tokens per second (mean)**: total (prompt + output) tokens per second
+
+. **Request latency in ms (mean, median, p99)**: total end to end request latency
+
+. **Time to First Token (mean, median, p99)**
+
+. **Inter-Token Latency (mean, median, p99)**
+
+. **Time per output token (mean, median, p99)**
+
+See the complete https://github.com/neuralmagic/guidellm/blob/main/docs/metrics.md[metrics documentation]. 
+
+### Reading Output
+
+#### Top Section (Benchmark Info)
+
+* Benchmark: The type of benchmark ran
+- constant@x indicates the number of requests sent constantly to the model per second.
+* Requests Made: How many requests issued (completed, incomplete or errors)
+* Token Data
+- Tok/Req: average tokens per request
+- Tok Total: total number of input/output tokens processed
+
+#### Bottom Section (Benchmark Stats)
+
+* Mean
+- Overall average
+- Good for general performance overview
+
+* Median
+- Typical experience
+- More stable, less skewed by outliers
+
+* P99
+- Worst-case real latency
+- Essential for SLOs and user experience under load
+
+### Adjusting GuideLLM Settings
+
+Depending on the results, try running GuideLLM a couple of different ways to see how the different controlled tests impact results.
+
+## Advanced Performance Evaluation Exercises
+
+For advanced engagements, it's crucial to demonstrate how different workload characteristics impact performance. The following exercises provide specific scenarios that align with common client use cases.
+
+### Exercise 1: Token Size Impact Analysis
+
+Understanding how input/output token ratios affect performance is essential for capacity planning and cost estimation.
+
+#### Exercise 1a: Chat Application Simulation
+Test a typical conversational AI scenario with short prompts and responses:
+
+[source,console,role=execute]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-chat \
+  --param processor=ibm-granite/granite-3.3-8b-instruct \
+  --param data-config='{"type":"emulated","prompt_tokens":256,"output_tokens":128}' \
+  --param rate-type=sweep \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc
+----
+
+**Business Context**: Represents customer service chatbots, virtual assistants, or interactive coding assistants where users expect rapid, conversational responses.
+
+#### Exercise 1b: RAG (Retrieval-Augmented Generation) Simulation
+Test document-heavy workloads with large context windows:
+
+[source,console,role=execute]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-rag \
+  --param processor=ibm-granite/granite-3.3-8b-instruct \
+  --param data-config='{"type":"emulated","prompt_tokens":4096,"output_tokens":512}' \
+  --param rate-type=sweep \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc
+----
+
+**Business Context**: Enterprise knowledge base queries, document analysis, or research assistance where large amounts of context are processed.
+
+#### Exercise 1c: Code Generation Workload
+Test balanced input/output for development use cases:
+
+[source,console,role=execute]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-code \
+  --param processor=ibm-granite/granite-3.3-8b-instruct \
+  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":512}' \
+  --param rate-type=sweep \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc
+----
+
+**Business Context**: AI-powered development tools, code completion, and automated programming assistance.
+
+### Exercise 2: Rate Type Deep Dive
+
+Different rate types reveal distinct performance characteristics critical for technical consulting. Select one option to test during this exercise due to time restrictions.
+
+#### Exercise 2a: Peak Capacity Assessment (Throughput)
+Determine maximum theoretical performance:
+
+[source,console,role=execute]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-peak \
+  --param processor=ibm-granite/granite-3.3-8b-instruct \
+  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":256}' \
+  --param rate-type=throughput \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc
+----
+
+**Technical Consulting Value**: 
+- Establishes theoretical maximum capacity for infrastructure sizing
+- Identifies hardware bottlenecks and scaling limits
+- Provides baseline for capacity planning and cost modeling
+
+#### Exercise 2b: Real-World Load Simulation (Constant)
+Test sustained production loads:
+
+[source,console,role=execute]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-production \
+  --param processor=ibm-granite/granite-3.3-8b-instruct \
+  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":256}' \
+  --param rate-type=constant \
+  --param rate=5 \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc
+----
+
+**Technical Consulting Value**:
+- Validates performance under realistic sustained loads
+- Identifies latency degradation patterns as load increases
+- Supports SLA definition and performance guarantees
+
+#### Exercise 2c: Burst Traffic Analysis (Poisson)
+Test irregular, bursty workloads typical in enterprise environments:
+
+[source,console,role=execute]
+----
+tkn pipeline start guidellm-benchmark-pipeline \
+  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
+  --param model-name=granite-8b-instruct-burst \
+  --param processor=ibm-granite/granite-3.3-8b-instruct \
+  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":256}' \
+  --param rate-type=poisson \
+  --param rate=8 \
+  --workspace name=shared-workspace,claimName=guidellm-output-pvc
+----
+
+**Technical Consulting Value**:
+- Models real-world traffic patterns with natural variability
+- Reveals queue management and batching effectiveness
+- Supports autoscaling configuration and resource allocation
+
+### Exercise 3: Comparative Analysis Framework
+
+Run multiple configurations to build performance profiles for client decision-making:
+
+#### Token Scaling Analysis
+Execute all three token configurations sequentially and compare:
+
+1. **Baseline** (Chat): 256/128 tokens
+2. **Medium** (Mixed): 1024/256 tokens  
+3. **Heavy** (RAG): 4096/512 tokens
+
+**Analysis Points for Technical Consulting**:
+- **Memory Usage Scaling**: How does KV cache grow with context length?
+- **Latency Patterns**: Linear vs exponential increases with token count
+- **Throughput Impact**: Requests/second degradation with larger contexts
+- **Cost Implications**: GPU hours required for different workload types
+
+#### Rate Type Performance Matrix
+Test each rate type with consistent token configuration to isolate performance characteristics:
+
+1. **Synchronous**: Baseline single-request latency
+2. **Constant**: Sustained load performance
+3. **Poisson**: Variable load handling
+4. **Sweep**: Comprehensive performance curve
+
+**Technical Consulting Applications**:
+- **Infrastructure Sizing**: Use throughput results for hardware recommendations
+- **SLA Development**: Leverage latency percentiles for performance guarantees  
+- **Cost Modeling**: Apply sustained load results to pricing calculations
+- **Scaling Strategy**: Use sweep results to plan horizontal scaling triggers
+
+## Enhanced Metrics Interpretation
+
+### Critical Performance Indicators
+
+#### Time to First Token (TTFT)
+**Business Impact**: Direct correlation to user experience and perceived responsiveness
+- **Target**: <200ms for interactive applications
+- **Acceptable**: 200-500ms for productivity tools
+- **Problematic**: >500ms indicates infrastructure or model optimization issues
+
+**Technical Consulting Guidance**:
+- High TTFT often indicates memory bandwidth limitations
+- Consistent across rate types suggests model-level bottlenecks
+- Variable TTFT indicates queueing or resource contention
+
+#### Inter-Token Latency (ITL)
+**Business Impact**: Affects streaming response quality and user engagement
+- **Target**: <50ms for smooth streaming experience
+- **Monitoring**: P99 values reveal worst-case user experience
+- **Optimization**: Focus on batching efficiency and memory management
+
+#### Request Latency Distribution Analysis
+**For Technical Consulting**:
+- **Mean**: General performance overview, useful for capacity planning
+- **Median**: Typical user experience, critical for SLA commitments
+- **P99**: Tail latency, essential for user satisfaction and system reliability
+
+**Red Flags**:
+- Large gap between median and P99 indicates inconsistent performance
+- Degrading P99 under load suggests approaching capacity limits
+- High variability points to resource contention or inefficient scheduling
+
+### Business Alignment Framework
+
+#### Cost-Performance Analysis
+Map performance metrics to business value:
+
+**Throughput-Based Costing**:
+```
+Cost per Request = (GPU Hours × Hourly Rate) / Total Requests Processed
+```
+
+**Quality-of-Service Tiers**:
+- **Premium**: P99 < 500ms, High throughput, Premium pricing
+- **Standard**: P99 < 1000ms, Medium throughput, Standard pricing  
+- **Economy**: P99 < 2000ms, Lower throughput, Budget pricing
+
+#### Capacity Planning Recommendations
+
+**Based on Sweep Results**:
+1. **Peak Efficiency Point**: Identify request rate with optimal cost/performance ratio
+2. **Linear Scaling Range**: Determine where performance degrades linearly vs exponentially
+3. **Breaking Point**: Establish maximum sustainable load before quality degradation
+
+**Infrastructure Sizing Formula**:
+```
+Required GPUs = (Peak Expected RPS × Safety Margin) / Sustainable RPS per GPU
+```
+
+### Troubleshooting Performance Issues
+
+#### High Latency Diagnosis
+1. **TTFT > ITL**: Memory bandwidth or model loading bottleneck
+2. **ITL >> TTFT**: Compute or batching inefficiency
+3. **Both High**: Infrastructure under-sizing or configuration issues
+
+#### Low Throughput Diagnosis  
+1. **Compare synchronous vs throughput**: Reveals batching effectiveness
+2. **Monitor GPU utilization**: Low utilization indicates non-GPU bottlenecks
+3. **Analyze queue depths**: High queuing suggests insufficient parallelism
+
+#### Inconsistent Performance Diagnosis
+1. **P99 >> Median**: Resource contention or thermal throttling
+2. **Variable between runs**: External factors or inadequate warm-up
+3. **Degradation over time**: Memory leaks or resource exhaustion
+
+This comprehensive evaluation framework enables technical consultants to provide data-driven recommendations for LLM deployment optimization, infrastructure sizing, and cost management.
+
+// TODO:## Deploying the GuideLLM Workbench
+// Deployment for GuideLLM custom notebook image or openshift deployment
+// Engaging with GuideLLM via the workbench
+
+## Summary
+
+This activity demonstrated how to evaluate system performance using GuideLLM with a default vLLM configuration. By configuring vLLM more precisely or your chosen inference runtime, you can better align model serving with application needs—whether you’re optimizing for cost, speed, or user experience.
