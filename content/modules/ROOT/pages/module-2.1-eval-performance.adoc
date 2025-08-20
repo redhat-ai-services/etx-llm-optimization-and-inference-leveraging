@@ -51,7 +51,12 @@ For our lab today, we will utilize the tekton pipeline on our OpenShift AI clust
 * Version control / auditability
 * Better handling of complex, multi-stage workflows
 
-First, apply the PVC, task, and pipeline.
+First, clone the benchmark pipeline repo, apply the PVC, task, and pipeline. We'll also create an s3 bucket in Minio where the pipeline will upload the benchmark results.
+
+[source,console,role=execute,subs=attributes+]
+----
+https://github.com/jhurlocker/guidellm-pipeline.git 
+----
 
 [source,console,role=execute,subs=attributes+]
 ----
@@ -174,7 +179,22 @@ tkn pipeline start guidellm-benchmark-pipeline -n vllm \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc  
 ----
 
-  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":128}' \
+Download the benchmark results from the *guidellm-benchmark* bucket in Minio and open the *benchmark-<TIMESTAMP>.txt* in a text editor.
+
+Get the route to the Minio UI. The login is *_admin/admin123_*
+
+[source,console,role=execute,subs=attributes+]
+----
+oc get route minio-ui -n ic-shared-minio -o jsonpath='{.spec.host}'
+----
+
+Minio bucket
+
+image::benchmark_results_file_in_minio.png[benchmark results in Minio]
+
+Benchmark results
+
+image::benchmark_results_minio.png[benchmark results]
 
 ### Evaluate Output and Adjust GuideLLM Settings
 
@@ -240,12 +260,17 @@ Test a typical conversational AI scenario with short prompts and responses:
 
 [source,console,role=execute]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-chat \
-  --param processor=ibm-granite/granite-3.3-8b-instruct \
-  --param data-config='{"type":"emulated","prompt_tokens":256,"output_tokens":128}' \
-  --param rate-type=sweep \
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \
+  --param data-config="prompt_tokens=256,output_tokens=128" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="sweep" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ----
 
@@ -256,12 +281,17 @@ Test document-heavy workloads with large context windows:
 
 [source,console,role=execute]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-rag \
-  --param processor=ibm-granite/granite-3.3-8b-instruct \
-  --param data-config='{"type":"emulated","prompt_tokens":4096,"output_tokens":512}' \
-  --param rate-type=sweep \
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \
+  --param data-config="prompt_tokens=4096,output_tokens=512" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="sweep" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ----
 
@@ -272,12 +302,17 @@ Test balanced input/output for development use cases:
 
 [source,console,role=execute]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-code \
-  --param processor=ibm-granite/granite-3.3-8b-instruct \
-  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":512}' \
-  --param rate-type=sweep \
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \
+  --param data-config="prompt_tokens=512,output_tokens=512" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="sweep" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ----
 
@@ -292,12 +327,17 @@ Determine maximum theoretical performance:
 
 [source,console,role=execute]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-peak \
-  --param processor=ibm-granite/granite-3.3-8b-instruct \
-  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":256}' \
-  --param rate-type=throughput \
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \
+  --param data-config="prompt_tokens=512,output_tokens=256" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="throughput" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ----
 
@@ -311,13 +351,17 @@ Test sustained production loads:
 
 [source,console,role=execute]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-production \
-  --param processor=ibm-granite/granite-3.3-8b-instruct \
-  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":256}' \
-  --param rate-type=constant \
-  --param rate=5 \
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \
+  --param data-config="prompt_tokens=512,output_tokens=256" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="constant" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ----
 
@@ -331,13 +375,17 @@ Test irregular, bursty workloads typical in enterprise environments:
 
 [source,console,role=execute]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-burst \
-  --param processor=ibm-granite/granite-3.3-8b-instruct \
-  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":256}' \
-  --param rate-type=poisson \
-  --param rate=8 \
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \
+  --param data-config="prompt_tokens=512,output_tokens=256" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="poisson" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ----
 
@@ -416,7 +464,7 @@ Map performance metrics to business value:
 
 **Throughput-Based Costing**:
 ```
-Cost per Request = (GPU Hours × Hourly Rate) / Total Requests Processed
+Cost per Request = (GPU Hours x Hourly Rate) / Total Requests Processed
 ```
 
 **Quality-of-Service Tiers**:
@@ -433,7 +481,7 @@ Cost per Request = (GPU Hours × Hourly Rate) / Total Requests Processed
 
 **Infrastructure Sizing Formula**:
 ```
-Required GPUs = (Peak Expected RPS × Safety Margin) / Sustainable RPS per GPU
+Required GPUs = (Peak Expected RPS x Safety Margin) / Sustainable RPS per GPU
 ```
 
 ### Troubleshooting Performance Issues
