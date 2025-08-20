@@ -16,9 +16,9 @@ spec:
       size: 5Gi
   modelArgs:
     - name: model
-      value: granite-8b-instruct-vllm-kserve # this should be the name of the InferenceService you're looking to evaluate
+      value: granite-8b # this should be the name of the InferenceService you're looking to evaluate
     - name: base_url
-      value: https://granite-8b-instruct-vllm-kserve-model-namespace.apps.ocp.z9rfv.sandbox447.opentlc.com/v1/completions # the location of your model's /chat/completions or /completions endpoint
+      value: https://granite-8b-vllm.apps.com/v1/completions # the location of your model's /chat/completions or /completions endpoint
     - name: num_concurrent
       value:  "1"
     - name: max_retries

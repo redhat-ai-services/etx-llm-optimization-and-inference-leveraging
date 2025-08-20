@@ -1,6 +1,8 @@
 deploymentMode: RawDeployment
 
 inferenceService:
+  name: granite-8b
+  namespace: vllm
   storage:
     mode: uri
     storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct

@@ -6,7 +6,7 @@ While performance metrics like latency and throughput are critical for deploying
 
 ## What is Trusty AI?
 
-https://trustyai.org/docs/main/main
+https://trustyai.org/docs/main/main[TrustyAI^] is an open-source AI explainability and trustworthiness platform designed to help developers and data scientists understand and monitor their machine learning models. It provides tools to analyze predictions, identify biases, and ensure that AI systems are fair, transparent, and reliable. As part of its comprehensive toolkit, TrustyAI integrates the popular lm-eval harness to specifically benchmark and evaluate the performance of large language models against standardized tests, allowing users not only to understand why a model makes a decision but also to quantitatively measure its accuracy and capabilities. This combination of explainability and performance evaluation enables organizations to build more responsible, ethical, and robust AI applications.
 
 ## What is lm-eval-harness?
 
@@ -24,7 +24,7 @@ The framework supports both open-source models and OpenAI-compatible endpoints, 
 
 Today we will be running the mmlu_pro evaluation. 
 
-**MMLU-Pro** is a reasoning-focused, multiple-choice benchmark derived from the original MMLU dataset. MMLU-Pro extends the original MMLU benchmark by introducing 10-option multiple-choice questions across diverse academic disciplines. It’s designed to test a model’s **reasoning, factual recall, and elimination skills**—key for enterprise AI.
+**MMLU-Pro** is a reasoning-focused, multiple-choice benchmark derived from the original https://huggingface.co/datasets/cais/mmlu[MMLU dataset^]. MMLU-Pro extends the original MMLU benchmark by introducing 10-option multiple-choice questions across diverse academic disciplines. It's designed to test a model's **reasoning, factual recall, and elimination skills**—key for enterprise AI.
 
 ## Today's Activity
 
@@ -36,25 +36,35 @@ In this section of our lab we will:
 
 ### Setup Trusty AI
 
-* Go to the DataScienceCluster resource instance.
-
-* Change the trustyai managementState from "Removed" to "Managed"
+. Fist, we'll change the trustyai managementState from "Removed" to "Managed" in the default DataScienceCluster.
++
+[source,console,role=execute,subs=attributes+]
+----
+oc patch datasciencecluster default-dsc -p '{"spec":{"components":{"trustyai":{"managementState":"Managed"}}}}' --type=merge
+----
++
 https://github.com/trustyai-explainability/llama-stack-provider-lmeval/blob/main/demos/00-getting_started_with_lmeval.ipynb
 https://trustyai.org/docs/main/lm-eval-tutorial#_examples
 
-#### 1. Configure TrustyAI to allow downloading remote datasets from Huggingface
+. Configure TrustyAI to allow downloading remote datasets from Huggingface
++
 By default, TrustyAI prevents evaluation jobs from accessing the internet or running downloaded code.
 A typical evaluation job will download two items from Huggingface:
-1) The dataset of the evaluation task, and any dataset processing code
-2) The tokenizer of your model
++
+- The dataset of the evaluation task, and any dataset processing code
+- The tokenizer of your model 
 
++
 If you trust the source of your dataset and tokenizer, you can override TrustyAI's default setting.
 In our case, we'll be downloading:
-1) [allenai/ai2_arc](https://huggingface.co/datasets/allenai/ai2_arc)
-2) [Phi-3-mini-4k-instruct's tokenizer](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
 
-If you are happy for TrustyAI to automatically download those two resources, run:
+- [allenai/ai2_arc](https://huggingface.co/datasets/allenai/ai2_arc) +
+- [Phi-3-mini-4k-instruct's tokenizer](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
 
++
+To download those two resources, run:
+
++
 [source,console,role=execute,subs=attributes+]
 ----
 oc patch configmap trustyai-service-operator-config -n redhat-ods-applications  \
@@ -63,81 +73,88 @@ oc patch configmap trustyai-service-operator-config -n redhat-ods-applications \
 --type merge -p '{"data":{"lmes-allow-online":"true","lmes-allow-code-execution":"true"}}'
 oc rollout restart deployment trustyai-service-operator-controller-manager -n redhat-ods-applications
 ----
+
++
 Wait for your `trustyai-service-operator-controller-manager` pod in the `redhat-ods-applications` namespace
 to restart, and then TrustyAI should be ready to go.
 
-#### 2. Ensure Granite model is configured
-
-Add the external endpoint to the evaluation_job.yaml file in the following section:
-
+. Ensure Granite model is configured
++
+Add the external endpoint to the *workshop_code/evals/trusty/arc_easy.yaml* file in the following section:
++
 [source,console,role=execute,subs=attributes+]
 ----
 - name: base_url
-      value: https://granite-8b-instruct-vllm-kserve-model-namespace.apps.ocp.z9rfv.sandbox447.opentlc.com/v1/completions # the location of your model's /chat/completions or /completions endpoint
+      value: https://<YOUR_EXTERNAL_INFERENCE_ENDPOINT>/v1/completions # the location of your model's /chat/completions or /completions endpoint
 ----
 
-#### 4. Run the evaluation
+### Create and run the lm-eval job
 
+. Run the evaluation
++
 To start an evaluation, apply an `LMEvalJob` custom resource as defined in the following file:
-
++
 [source,console,role=execute,subs=attributes+]
 ----
-oc apply -f workshop_code/evals/trusty/arc_easy.yaml
+oc apply -f workshop_code/evals/trusty/arc_easy.yaml -n vllm
 ----
-
-Check out the evaluation_job.yaml file to learn more about the `LMEvalJob` specification.
-
++
+Check out the arc_easy.yaml file to learn more about the `LMEvalJob` specification.
++
 If everything has worked, you should see a pod called `arc-easy-eval-job` running in your namespace. 
 You can watch the progress of your evaluation job by running:
-
++
 [source,console,role=execute,subs=attributes+]
 ----
-oc logs -f arc-easy-eval-job
+watch oc logs -f arc-easy-eval-job -n vllm
 ----
++
 You will see progression in percentage points.
-
++
 or alternatively the logs of the model pod:
-
++
 [source,console,role=execute,subs=attributes+]
 ----
-oc logs -f granite-8b-instruct-vllm-kserve-predictor-<exact-pod-name>
+oc logs -f granite-8b-predictor-<exact-pod-name> -n vllm
 ----
-
++
 You will see the exact questions getting passed to the model endpoint.
-
++
 This evaluation run will take approximately 10 minutes.
 
-#### 5. While You Wait: What is lm-eval-harness?
+. While You Wait: What is lm-eval-harness?
 
-* Check out this https://github.com/EleutherAI/lm-evaluation-harness/blob/main/examples/lm-eval-overview.ipynb[overview notebook] to explore extensibility and task definitions.
+* Check out this https://github.com/EleutherAI/lm-evaluation-harness/blob/main/examples/lm-eval-overview.ipynb[overview notebook^] to explore extensibility and task definitions.
 
-* View real Red Hat https://huggingface.co/collections/RedHatAI/red-hat-ai-validated-models-v10-682613dc19c4a596dbac9437[validated model results] to understand benchmark outcomes in production contexts and to see how your favorite models rank.
+* View real Red Hat https://huggingface.co/collections/RedHatAI/red-hat-ai-validated-models-v10-682613dc19c4a596dbac9437[validated model results^] to understand benchmark outcomes in production contexts and to see how your favorite models rank.
 
-##### Interpreting MMLU-Pro Results
+### Interpret and understand results
 
+. Interpreting MMLU-Pro Results
++
 **Accuracy**: The primary metric is multiple-choice accuracy, indicating how often the model selects the correct answer from 10 options.
-
-* ~10% = random guessing baseline
-
-* ~30–50% = typical for smaller or untuned models
-
-* ~60–70%+ = high reasoning capability or fine-tuned performance
-
-**Per-subject Scores**: Breakdowns by subject (e.g., philosophy, law, computer science) help identify a model’s strengths and weaknesses in specific domains.
-
++
+~10% = random guessing baseline
++
+~30-50% = typical for smaller or untuned models
++
+~60-70%+ = high reasoning capability or fine-tuned performance
++
+**Per-subject Scores**: Breakdowns by subject (e.g., philosophy, law, computer science) help identify a model's strengths and weaknesses in specific domains.
++
 **Implications**: Higher MMLU-Pro accuracy generally correlates with better real-world task generalization, especially for tasks involving structured inputs, knowledge retrieval, and logic.
 
-
-#### 6. Check out the results
-
+. Check out the results
++
 After the evaluation finishes (it took about 8.5 minutes on my cluster), you can take a look at the results. These are stored in the `status.results` field of the LMEvalJob resource:
-
++
 [source,console,role=execute,subs=attributes+]
 ----
-oc get LMEvalJob arc-easy-eval-job -o template --template '{{.status.results}}' | jq  .results
+oc get LMEvalJob arc-easy-eval-job -n vllm -o jsonpath='{.status.results}' | jq '.results'
 ----
-
++
 returns:
++
 [source,console]
 ----
 {
@@ -150,29 +167,42 @@ returns:
   }
 }
 ----
-
++
+*Explanation of results*
++
+*acc,none*: This stands for accuracy. The value 0.8186 means the model answered approximately 81.86% of the questions correctly based on its raw output.
++
+*acc_stderr,none*: This is the standard error of the accuracy. The value 0.0079 represents the margin of error for the accuracy score. It indicates how much the result might vary if the test were run again. A smaller number means the result is more statistically reliable.
++
+*acc_norm,none*: This is the normalized accuracy. The value 0.7836 means that after cleaning up the model's answers (e.g., removing extra spaces, punctuation, or standardizing capitalization), it answered about 78.37% of the questions correctly. This score is often considered a more realistic measure of performance.
++
+*acc_norm_stderr,none*: This is the standard error for the normalized accuracy, indicating the margin of error for that specific score.
++
 Now you're free to play around with evaluations! You can see the full list of evaluation supported by 
-lm-evaluation-harness [here.](https://github.com/red-hat-data-services/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md)
-## More information
-- [TrustyAI Notes Repo](https://github.com/trustyai-explainability/reference/tree/main)
-- [TrustyAI Github](https://github.com/trustyai-explainability)
+lm-evaluation-harness https://github.com/red-hat-data-services/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md[here^]
++
+*More information*
++
+[TrustyAI Notes Repo](https://github.com/trustyai-explainability/reference/tree/main)
++
+[TrustyAI Github](https://github.com/trustyai-explainability)
 
-#### 7. Try MMLU industry-focused test
-
+. Try MMLU industry-focused test
++
 In some cases, you may want to check that a model has retained accuracy around a standard, specific dataset topic. 
-
-Let's try the mmlu_jurisprudence dataset to test the model's knowledge on law.
-
++
+Let's try the mmlu_jurisprudence dataset to test the model's knowledge on law. Update the *base_url* to your external inference endpoint.
++
 [source,console,role=execute,subs=attributes+]
 ----
-oc apply -f workshop_code/evals/trusty/mmlu_jurisprudence.yaml
+oc apply -f workshop_code/evals/trusty/mmlu_jurisprudence.yaml -n vllm
 ----
-
++
 This will only take a minute or so to process. 
-
++
 [source,console,role=execute,subs=attributes+]
 ----
-oc get LMEvalJob mmlu-jurisprudence-eval-job -o template --template '{{.status.results}}' | jq  .results
+oc get LMEvalJob mmlu-jurisprudence-eval-job -n vllm -o template --template '{{.status.results}}' | jq  .results
 ----
 
 // TODO:### Testing your model with a custom dataset 
@@ -182,6 +212,7 @@ oc get LMEvalJob mmlu-jurisprudence-eval-job -o template --template '{{.status.r
 ## Summary
 
 What We Did:
+
 * Set up TrustyAI operator - Enabled model evaluation framework in OpenShift AI
 * Configured internet access - Allowed downloading of evaluation datasets from HuggingFace
 * Connected to deployed model - Linked evaluation job to the Granite 8B inference service
@@ -189,11 +220,12 @@ What We Did:
 * Analyzed results - Achieved 81.8% accuracy, indicating strong reasoning performance
 
 Key Outcome:
+
 * ✅ Successfully evaluated deployed AI model accuracy using industry-standard benchmarks through TrustyAI + lm-eval-harness
 
 Tools Used:
+
 * TrustyAI: Enterprise evaluation operator
 * lm-eval-harness: Standard benchmarking framework
 * ARC Easy: Science reasoning benchmark
 * Bottom Line: Demonstrated how to measure and validate AI model accuracy in production using automated evaluation pipelines.
-

@@ -32,7 +32,14 @@ There are several current ways you may deploy and use GuideLLM.
 * CLI tool: documented in the upstream project.
 * Python library: Not yet in current upstream documentation. You can see an example here in this guide: https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/rhoai_deploy/guide_llm.html. 
 * Kubernetes job: https://github.com/rh-aiservices-bu/guidellm-pipeline 
-* Tekton pipeline: https://github.com/rh-aiservices-bu/guidellm-pipeline 
+* Tekton pipeline: https://github.com/jhurlocker/guidellm-pipeline.git (forked from above repo) 
+** Run the below command to install the Tekton CLI
++
+[source,console,role=execute,subs=attributes+]
+----
+curl -sL $(curl -s https://api.github.com/repos/tektoncd/cli/releases/latest | grep "browser_download_url.*_Linux_x86_64.tar.gz" | cut -d '"' -f 4) | sudo tar -xz -C /usr/local/bin tkn
+tkn version
+----
 
 For our lab today, we will utilize the tekton pipeline on our OpenShift AI cluster. A pipeline deployment provides the following benefits:
 
@@ -44,12 +51,15 @@ For our lab today, we will utilize the tekton pipeline on our OpenShift AI clust
 * Version control / auditability
 * Better handling of complex, multi-stage workflows
 
-First, apply the task and pipeline.
+First, apply the PVC, task, and pipeline.
 
 [source,console,role=execute,subs=attributes+]
 ----
-oc apply -f tekton-task.yaml
-oc apply -f tekton-pipeline.yaml
+oc apply -f guidellm-pipeline/pipeline/upload-results-task.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/guidellm-pipeline.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/pvc.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/guidellm-benchmark-task.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/mino-bucket.yaml -n vllm
 ----
 
 Before running the pipeline, let's review the options for GuideLLM more closely.
@@ -139,17 +149,32 @@ Real workloads differ significantly from stock data:
 
 ## Execute the pipeline
 
-Run the pipeline with necessary parameters. If you chose a different model adjust the target parameter. 
+Set your external model inference endpoint
 
 [source,console,role=execute,subs=attributes+]
 ----
-tkn pipeline start guidellm-benchmark-pipeline \
-  --param target=https://granite-8b-instruct-vllm-kserve.rhaiis-evals.svc.cluster.local:8000/v1 \
-  --param model-name=granite-8b-instruct-vllm-kserve \               
-  --param processor=ibm-granite/granite-3.3-8b-instruct \       
-  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":128}' \
+export INFERENCE_ENDPOINT=$(oc get inferenceservice granite-8b -n vllm -o jsonpath='{.status.url}')
+----
+
+Run the pipeline with necessary parameters in a terminal. Accept the defaults when prompted. If you chose a different model adjust the *target* parameter. 
+
+[source,console,role=execute,subs=attributes+]
+----
+tkn pipeline start guidellm-benchmark-pipeline -n vllm \
+  --param target=$INFERENCE_ENDPOINT/v1 \
+  --param model-name="granite-8b" \               
+  --param processor="ibm-granite/granite-3.3-8b-instruct" \       
+  --param data-config="prompt_tokens=512,output_tokens=128" \
+  --param max-seconds="30" \
+  --param huggingface-token="" \
+  --param api-key="" \
+  --param rate="2" \
+  --param rate-type="sweep" \
+  --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc  
 ----
+
+  --param data-config='{"type":"emulated","prompt_tokens":512,"output_tokens":128}' \
 
 ### Evaluate Output and Adjust GuideLLM Settings
 
