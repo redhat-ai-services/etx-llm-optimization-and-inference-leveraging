@@ -15,11 +15,11 @@ Before diving into tuning, it's important to understand the key performance cons
 
 *Throughput*: The number of requests (or tokens) processed per unit of time. While we're optimizing for latency, higher throughput often means better resource utilization, which can indirectly help avoid latency spikes due to queuing.
 
-. First we'll need to re-deploy the granite-3.3-8b-instruct. Open a terminal and login to your OpenShift cluster. Recreate our project name `rhaiis-demo`.
+. First we'll need to re-deploy the granite-3.3-8b-instruct. Open a terminal and login to your OpenShift cluster. Recreate our project name `vllm`.
 +
 [source,sh,role=execute]
 ----
-oc new-project rhaiis-demo
+oc project vllm
 ----
 
 . We'll be deploying granite-3.3-8b-instruct through the vllm-kserve helm chart again.
@@ -48,29 +48,33 @@ inferenceService:
 +
 [source,sh,role=execute]
 ----
-helm install granite-8b-instruct workshop_code/deploy_vllm/vllm-kserve -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
+helm install granite-8b workshop_code/deploy_vllm/vllm-kserve -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 
-. Login to OpenShift AI and go to your *rhaiis-demo* Data Science Project. Wait until the model fully deploys (green check) before continuing. 
+. Login to OpenShift AI and go to your *vllm* Data Science Project. Wait until the model fully deploys (green check) before continuing. 
 +
 image::granite-deployed-rhoai.png[Granite deployed on RHOAI]
 
-. We'll be running an OpenShift pipeline with GuideLLM to benchmark our model as we step through the optimizations. Clone the following repository.
+. We'll be running an OpenShift pipeline with GuideLLM to benchmark our model as we step through the optimizations. Clone the following repository. 
++
+NOTE: No need to do this if you cloned the repository in module 2.
 +
 [source,sh,role=execute]
 ----
 git clone https://github.com/jhurlocker/guidellm-pipeline.git
 ----
 
-. Run the below commands to deploy the pipeline and tasks. We'll also deploy Minio so we can upload our results to an s3 bucket.
+. Run the below commands to deploy the pipeline, tasks, and s3 bucket. 
++
+NOTE: No need to do this if you executed these commands in module 2.
 +
 [source,sh,role=execute]
 ----
-oc apply -f guidellm-pipeline/pipeline/upload-results-task.yaml -n rhaiis-demo
-oc apply -f guidellm-pipeline/pipeline/guidellm-pipeline.yaml -n rhaiis-demo
-oc apply -f guidellm-pipeline/pipeline/pvc.yaml -n rhaiis-demo
-oc apply -f guidellm-pipeline/pipeline/guidellm-benchmark-task.yaml -n rhaiis-demo
-oc apply -f guidellm-pipeline/pipeline/mino.yaml -n rhaiis-demo
+oc apply -f guidellm-pipeline/pipeline/upload-results-task.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/guidellm-pipeline.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/pvc.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/guidellm-benchmark-task.yaml -n vllm
+oc apply -f guidellm-pipeline/pipeline/mino-bucket.yaml -n vllm
 ----
 
 . Lets run the GuideLLM pipeline! Open the _guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml_ file. Let's go through some of the GuideLLM arguments we're setting. The pipeline will run a benchmark for 1, 4, 8, and 16 concurrent users. 
@@ -81,10 +85,10 @@ image::pipelinerun.png[pipelinerun]
 +
 [source,sh,role=execute]
 ----
-oc create -f guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml -n rhaiis-demo
+oc create -f guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml -n vllm
 ----
 
-. Go to your OpenShift console and view the pipeline run under your *rhaiis_demo* project. Click on the bar under *Task Status*.
+. Go to your OpenShift console and view the pipeline run under your *vllm* project. Click on the bar under *Task Status*.
 +
 image::ocp_pipelinerun_list.png[pipelinerun in ocp]
 +
@@ -120,6 +124,7 @@ image::extract_results.png[extract benchmark results]
 +
 image::ttft_chart.png[TTFT chart]
 
+//// 
 == Use
 
 We can use this script as our starting point and the way we're going to benchmark our model as we step through the optimizations:
@@ -196,7 +201,7 @@ image::starting_point.png[starting_point]
 
 All reported times are in `ms`. All reported times are in milliseconds. Notice how quickly we exceed the "seconds" threshold with even a 
 slight increase in concurrent users—serving LLMs is hard!  
-
+////
 
 == vLLM Tuning Strategies for Granite 3.3 8B Latency
 
@@ -232,7 +237,7 @@ inferenceService:
     - "--max-model-len=2048"
 ```
 
-. Go to your OpenShift web console. Select the *rhaiis-demo* project and open the logs for the *granite-8b-instruct-vllm-kserve-predictor-00003-deploymentXXXXX* pod. 
+. Go to your OpenShift web console. Select the *vllm* project and open the logs for the *granite-8b-predictor-00003-deploymentXXXXX* pod. 
 +
 image::granite-pod.png[Granite pod]
 +
@@ -267,7 +272,7 @@ inferenceService:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b-instruct redhat-ai-services/vllm-kserve --version "0.3.8" \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version "0.3.8" \
   --values openshift-ai/values.yaml
 ----
 
@@ -306,7 +311,7 @@ inferenceService:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b-instruct redhat-ai-services/vllm-kserve --version "0.3.8" \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version "0.3.8" \
   --values openshift-ai/values.yaml
 ----
 
@@ -318,7 +323,7 @@ image::benchmark_rate_4.png[set the rate to 4, align="left"]
 +
 [source,sh,role=execute]
 ----
-oc create -f guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml -n rhaiis-demo
+oc create -f guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml -n vllm
 ----
 
 . After the pipeline finishes go to your OpenShift AI workbench and open the _graph_benchmarks.ipynb_ file. Execute the first cell to download the latest benchmark file.
@@ -433,7 +438,7 @@ inferenceService:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b-instruct redhat-ai-services/vllm-kserve --version "0.3.8" \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version "0.3.8" \
   --values openshift-ai/values.yaml
 ----
 
@@ -445,7 +450,7 @@ image::benchmark_rate_1_4_8_16.png[set the rate to 4, align="left"]
 +
 [source,sh,role=execute]
 ----
-oc create -f guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml -n rhaiis-demo
+oc create -f guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml -n vllm
 ----
 
 . After the pipeline finishes go to your OpenShift AI workbench and open the _graph_benchmarks.ipynb_ file. Execute the first cell to download the latest benchmark file.
