@@ -1,5 +1,3 @@
-:imagesdir: ../assets/images
-[#quantization-1]
 = Weights and Activation Quantization (W4A16)
 
 == Learning Objectives
@@ -58,31 +56,6 @@ image::quant-create-project.png[title="Create Data Science Project Named 'quanti
 
 Verify that your project appears in the Data Science Projects list with the name "quantization" and shows a "Ready" status.
 
-=== Setting up S3-compatible storage
-_Estimated time: 3-5 minutes_
-
-Next, configure storage for the pipeline server and quantized models.
-
-* Clone the link:https://github.com/redhat-ai-services/etx-llm-optimization-and-inference-leveraging.git[Git repository] from to your local machine.
-* Log in to OpenShift and set up MinIO storage:
-
-[source,console,role=execute,subs=attributes+]
-----
-oc login --token=<<TOKEN>>
-oc new-project minio
-oc apply -f optimization_lab/llm_compressor/minio.yaml -n minio
-----
-
-Use the default MinIO credentials: `minio` for the username and `minio123` for the password.
-
-* Log in to MinIO with the credentials `minio/minio123` and create two buckets with the names `pipeline` and `models`.
-
-Confirm that:
-
-* MinIO pods are running in the `minio` namespace: `oc get pods -n minio`
-* You can access the MinIO web interface
-* Both `pipeline` and `models` buckets exist in MinIO
-
 === Creating a Data Connection for the Pipeline Server
 _Estimated time: 2-3 minutes_
 
@@ -111,19 +84,19 @@ pipeline-connection
 [.console-input]
 [source, text]
 [subs=attributes+]
-minio
+<<ACCESS_KEY_FOR_YOUR_MINIO_SETUP_FROM_PREVIOUS_LAB>>
 ** Secret Key:
 [.lines_space]
 [.console-input]
 [source, text]
 [subs=attributes+]
-minio123
+<<SECRET_KEY_FOR_YOUR_MINIO_SETUP_FROM_PREVIOUS_LAB>>
 ** Endpoint:
 [.lines_space]
 [.console-input]
 [source, text]
 [subs=attributes+]
-http://minio-service.minio.svc.cluster.local:9000
+<<API_ENDPOINT_FOR_YOUR_MINIO_SETUP_FROM_PREVIOUS_LAB>>
 ** Region:
 [.lines_space]
 [.console-input]
@@ -149,7 +122,7 @@ image::quant-data-connection.png[title="Data Connection Configuration", link=sel
 Check that both data connections appear in your project:
 
 * `pipeline-connection` - connected to `pipelines` bucket
-* `minio-models` - connected to `models` bucket
+* `minio-models` - connected to the bucket in which the model `ibm-granite/granite-3.3-2b-instruct` is available 
 
 === Creating a Pipeline Server
 _Estimated time: 5-8 minutes_

@@ -1,30 +1,15 @@
-:imagesdir: ../assets/images
-[#quantization-technical]
 = Model optimization
 
 * Deep dive presentation 
 - link:https://docs.google.com/presentation/d/1_CKoP4EcjKNv7ykYplQNIjvyru9xp2Hn/edit[LLM Compressor Deep Dive]
 
-== The deep dive content for this section can be found here - link:https://docs.google.com/presentation/d/1_CKoP4EcjKNv7ykYplQNIjvyru9xp2Hn/edit?slide=id.g363272ea3ef_0_162#slide=id.g363272ea3ef_0_162[LLM quantization]
-
-
-== 1. Overview
-
-Model quantization emerges as a pivotal technique to address these challenges. 
-It involves reducing the numerical precision of LLM parameters, such as weights and activations, 
-from higher-precision floating-point formats (e.g., FP32, FP16, BF16) to lower-bit representations (e.g., INT8, INT4, FP8, FP6, FP4).
-
-This process fundamentally decreases the model's memory footprint, accelerates inference speeds, and reduces overall computational load 
-and energy costs (*depending on accelerator support).
-
-
-== Challenges with running larger models
+=== Challenges with running larger models
 
 Even with the latest hardware like NVIDIA B200 GPUs offering up to 192GB of memory, the rapid increase in model sizes (e.g., GPT MoE 1.8T parameters) means that many state-of-the-art models cannot fit into a single GPU or even across multiple GPUs without optimization.
 
 image::why-optimize.png[why_optimize]
 
-Given below are simple examples that shows how much memory is required just for storing parameters in GPUs for larger models.
+Give below are simple examples that shows how much memory is required just for storing parameters in GPUs for larger models.
 
 Llama 4 Scout: 109B params 
 
@@ -101,75 +86,8 @@ In addition to the improvements described above, it also offers the following ad
 
 * **Enabling new use cases**: By reducing the size and resource requirements, model optimization makes it feasible to use advanced LLMs in scenarios previously not possible, such as mobile, IoT, or embedded systems.
 
-== 2. Quantization: Background
 
-Reducing the memory occupied by the model means there is more memory to allocate towards KV Cache, which will result in end-to-end 
-faster serving on cache hits.
-Furthermore, lowering the precision of weights results in reduced data movement from HBM to Shared memory and registers on device.
-
-An additional beneficial property is that _some_ accelerators will be able to compute the lower precision values at higher speed: think integer math
-is inherently cheaper to compute than floating point, therefore the device will be able to leverage the integer-only hardware to run faster. 
-
-The fundamental principle of quantization is to represent numerical values, including both model weights and intermediate activations,
-using a reduced number of bits. 
-At its core, quantization maps a range of floating-point values (denoted as X) to a subset of continuous or even discrete 
-(integers) values (X̄) represented with a smaller number of bits. This transformation is typically defined by a scaling factor (Δ), a rounding function 
-and optionally a zero-point (z), applying the following to all original weights X:
-
-```
- X̄ = ⌈X*Δ+z⌋. 
-```
-
-A naive quantization range mapping from bf16 (16bits) down to fp8 (8 bits) can be visualized as:
-
-image::quant_mapping.png[quant_mapping]
-
-The issue with just mapping values this way is that given how the two types will have different granularities, 
-much of the values which don't fall into the representable grid in fp8 will be lost (ie they will be mapped to the same value, *clipped*).
-This clipping or loss of precision can lead to a significant degradation in model accuracy. 
-
-The workaround to this fundamental representational issue is to adjust the mapping range based on the actual distribution of values we are quantizing. 
-Instead of a fixed, global mapping, we determine the optimal scaling factor (Δ) and zero-point (z) by first understanding the spread 
-of the floating-point values (X) within a specific weight tensor.
-
-The process typically involves the following steps:
-
- - Observe the Value Distribution: For a given tensor, we identify the minimum (X min) and maximum (X max) values present in that tensor.
-   Example: If a tensor's values range from -5.2 to +4.8, these become our observed min and max.
- - Determine the Quantized Range: Next, we need to know the numerical range that our target lower-precision format. 
-    For an 8-bit integer, for instance, this might be from -128 to +127 (signed int8).
-    Calculate the Scaling Factor (Δ): The scaling factor bridges the gap between the floating-point range and the target range. 
-    It tells us how many floating-point units correspond to one step in the quantized space.
- - Optionally calculate the Zero-Point (z): The zero-point is an offset that aligns the zero value of the floating-point range with a
-  specific value in the quantized range. This is called _asymmetric_ quantization where the floating-point distribution is not centered 
-  around zero.
-​ - Quantize the Values: Once Δ and z are determined, each original floating-point value X can be mapped to its quantized representation X̄ `X̄ = ⌈X*Δ+z⌋`.
-    The round function ensures that floating-point values are mapped to the nearest representable integer. Values that fall outside the observed min, max
-    range will be "clipped".
-
-
-image::quant_mapping2.png[quant_mapping2]
-
-### Weight vs activations quantization
-
-- Weights: These are the learned parameters of the model. They are static values determined during the training phase, 
-representing the "knowledge" the model has acquired. Once training is complete, these values don't change during inference.
-
-- Activations: These are the intermediate outputs generated by the model as it processes an input. As data flows through the network, 
-each layer performs calculations using the weights and the preceding layer's activations to produce new activations. 
-These values are dynamic; they change with every new input the model receives.
-
-Activations, being dynamic, require data. Their values depend entirely on the specific input provided to the model. 
-To accurately determine the optimal Δ and z for activations, you need to observe how they behave across a range of *typical* inputs during _calibration_.
-
-This is usually done through a process called _calibration_, where a small, representative dataset (distinct from the training or validation sets) is passed
-through the full-precision model to collect statistics (like min/max values) for each activation tensor. 
-Without this data, the model wouldn't know the proper range to map the dynamic activation values into the lower-precision format.
-
-This is why some of the _calibration-free_ methods listed below will only quantize weight (`w4/8` suffixes) but will leave activations unchanged (`a16`), resulting in virtually
-no loss in accuracy. This techniques are optimal when either a) no task-specific data is available or b) a slightly lower model quality cannot be accepted. 
-
-== 3. Quantization in practice
+= Quantization in practice 
 
 === Quantization types in vLLM & LLM Compressor:
 
@@ -195,6 +113,11 @@ no loss in accuracy. This techniques are optimal when either a) no task-specific
 |===
 
 === Supported quantization schemes and when to use what?
+
+[IMPORTANT]
+====
+Red Hat Consulting and customers **should not perform custom quantization runs without an existing, validated recipe**. Only use the provided recipes for supported models and quantization schemes. Custom quantization is complex, error-prone and can result in significant accuracy loss or unsupported models.
+====
 
 [cols="1,2,3,4", options="header"]
 |===
@@ -332,7 +255,21 @@ tokenizer = AutoTokenizer.from_pretrained("your-model")
 *** `actorder` sets the activation ordering. When compressing the weights of a layer, the order in which channels are quantized matters. Setting `actorder="weight"` can improve accuracy without added latency.
 
 * Applying quantization
-**  Use oneshot API and provide the recipies to quantize and/or apply sparsity to the model given a dataset
+
+** After preparing your calibration data and tuning the key quantization hyperparameters, the next step is to actually apply quantization to your model. The recommended and most reliable way to do this is by using the **oneshot** API provided by LLM Compressor. This approach ties together all the previous steps—model loading, calibration and quantization—into a single, reproducible workflow driven by a recipe file. 
+
+=== Oneshot Quantization
+
+The **oneshot** entrypoint in LLM Compressor provides a streamlined, recipe-driven approach to quantization. It applies a pre-defined quantization method (such as GPTQ, AWQ, or SmoothQuant) to a model in a single step, using a calibration dataset and configuration specified in the recipe. Technically, oneshot:
+
+* Loads the model and calibration data
+* Applies the quantization method as defined in the recipe (e.g., GPTQ for weight quantization, SmoothQuant for activation smoothing)
+* Calibrates quantization parameters (scales, zero points) in one pass
+* Exports the quantized model for deployment
+
+This approach ensures reproducibility and minimizes the risk of accuracy loss, as all parameters and steps are controlled by the recipe. **Do not attempt manual or custom quantization without a validated recipe.**
+
+Shown below is an example of how to use oneshot API and provide the recipies to quantize and/or apply sparsity to the model given a dataset
 [source,python]
 ----
 from llmcompressor import oneshot
@@ -389,4 +326,3 @@ lm_eval \
   --model_args pretrained=$MODEL,kv_cache_dtype=fp8,add_bos_token=True \
   --tasks gsm8k --num_fewshot 5 --batch_size auto
 ----
-

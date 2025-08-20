@@ -1,5 +1,3 @@
-:imagesdir: ../assets/images
-[#quantization-2]
 = Model Quantization Pipeline
 
 == Learning Objectives
@@ -14,14 +12,14 @@ By completing this exercise, you will:
 
 == Overview
 
-This pipeline automates the model quantization process you completed manually in the previous lab. The pipeline handles model downloading from Hugging Face, quantization, S3 upload, and accuracy evaluation automatically through a series of connected components.
+This pipeline automates the model quantization process you completed manually in the previous lab. The pipeline handles model downloading from either S3 (MinIO) storage or HuggingFace Hub, quantization, S3 upload of results, and accuracy evaluation automatically through a series of connected components.
 
 == Pipeline Overview
 
 The pipeline consists of the following stages:
 
 1. *Create PVC*: Creates a Persistent Volume Claim for storing model data
-2. *Download Model*: Downloads the specified model from Hugging Face Hub
+2. *Download Model*: Downloads the specified model from either S3 (MinIO) storage or HuggingFace Hub (controlled by `use_s3_download` parameter)
 3. *Quantize Model*: Performs model quantization (supports int4 and int8 quantization)
 4. *Upload Model*: Uploads the quantized model to a S3 (MinIO) storage location
 5. *Evaluate Model*: Evaluates the quantized model's accuracy
@@ -33,7 +31,10 @@ Before starting this exercise, ensure you have:
 
 * Completed the previous quantization lab (module-optimization-lab-1)
 * OpenShift AI environment with configured pipeline server
-* S3-compatible storage data connection set up in OpenShift AI
+* S3-compatible storage data connection set up in OpenShift AI (for S3 download path)
+* Either:
+** Models pre-uploaded to S3 (MinIO) storage in the expected format and path structure, OR
+** External internet access to HuggingFace Hub (for HuggingFace download path)
 * Access to a workbench with GPU capabilities
 
 == Storage Requirements
@@ -46,9 +47,13 @@ The pipeline creates a PVC with:
 
 Make sure your cluster has the appropriate storage class available.
 
-== Data Connection Setup
+== Data Source Configuration
 
-Before running the pipeline, configure the S3 storage connection:
+Before running the pipeline, configure the data source based on your chosen download method:
+
+=== S3 Download Configuration (use_s3_download=true)
+
+If using S3 download, configure the S3 storage connection:
 
 1. Create a data connection in OpenShift AI pointing to your MinIO S3 storage. You can reuse the **minio-models** connection created in the previous lab.
 2. The data connection requires these mandatory fields:
@@ -56,7 +61,26 @@ Before running the pipeline, configure the S3 storage connection:
 * **Access Key**: Your MinIO access key
 * **Secret Key**: Your MinIO secret key  
 * **Endpoint**: Your MinIO endpoint URL
-* **Bucket**: Ensure the target bucket exists in MinIO before running the pipeline 
+* **Bucket**: Ensure the target bucket exists in MinIO before running the pipeline
+
+NOTE: Models must be pre-uploaded to your S3 bucket in the correct directory structure. For example, the default model path `ibm-granite/granite-3.3-2b-instruct` should contain all model files (*.safetensors, config.json, tokenizer files, etc.) in the S3 bucket.
+
+=== HuggingFace Download Configuration (use_s3_download=false)
+
+If using HuggingFace download, ensure:
+
+1. **Internet Access**: Your OpenShift AI environment has external internet access to reach `huggingface.co`
+2. **Model ID**: Use the HuggingFace model identifier (e.g., `ibm-granite/granite-3.3-2b-instruct`) in the `model_id` parameter
+3. **No Authentication Required**: For public models, no additional configuration is needed
+
+[TIP]
+====
+**Choosing your download method**: 
+
+- Use S3 download (`use_s3_download=true`) in enterprise environments or when outbound internet access is restricted on the cluster
+
+- Use HuggingFace download (`use_s3_download=false`) for quick testing with public models in environments with internet access
+==== 
 
 == Workbench Setup
 
@@ -91,7 +115,7 @@ Verify successful installation:
 
 == Building the Pipeline
 
-* In the Jupyter workbench, open the `quantization_pipeline.py` file from `workshop_code/quantization/llm_compressor` directory.
+* In the Jupyter workbench, open the `quantization_pipeline.py` file from `optimization_lab/llm_compressor`
 * Review the pipeline definition to understand its components and data flow
 
 === Pipeline Architecture Overview
@@ -101,9 +125,13 @@ Before diving into individual components, let's understand the overall pipeline 
 [source, python]
 ----
 @dsl.pipeline(...)
-def quantization_pipeline(model_id, output_path, quantization_type):
+def quantization_pipeline(model_s3_path, output_path, quantization_type, use_s3_download):
     pvc = CreatePVC(...)
-    download = download_model(...)
+    # Conditional download path based on pipeline parameter
+    with dsl.If(use_s3_download == True):
+        download = download_model_from_s3(...)
+    with dsl.Else():
+        download = download_model_from_hf(...)
     quantize = quantize_model(...)
     upload = upload_model(...)
     evaluate = evaluate_model(...)
@@ -115,43 +143,85 @@ def quantization_pipeline(model_id, output_path, quantization_type):
 
 **Data Flow Architecture:**
 ```
-HuggingFace → Download → PVC → Quantize → PVC → Upload to S3
-                                ↓
-                            Evaluate ← PVC
+Conditional Download Path (controlled by use_s3_download parameter):
+┌─ S3 (MinIO) → Download S3 ─┐
+│                            ├→ PVC → Quantize → PVC → Upload to S3
+└─ HuggingFace → Download HF ─┘           ↓
+                                      Evaluate ← PVC
 ```
+
+[NOTE]
+====
+**Practical Deployment Considerations**: In most client engagements, external internet access to HuggingFace Hub is often blocked or restricted due to security policies. In such environments, the S3 download path (`use_s3_download=True`) becomes the primary method for accessing pre-trained models. Models would typically be pre-downloaded and stored in the client's internal S3-compatible storage (MinIO, AWS S3, etc.) before running quantization pipelines.
+====
 
 **Resource Management:**
 
 * **PersistentVolumeClaim**: Created dynamically to persist model files across pipeline steps
+* **Conditional Execution**: `use_s3_download` parameter controls whether to download from S3 or HuggingFace
 * **GPU Scheduling**: Tolerations (`nvidia.com/gpu`) enable scheduling on GPU-enabled nodes
 * **Shared Storage**: PVC mounted across all tasks ensures consistent data access
-* **Task Sequencing**: download → quantize → (upload & evaluate in parallel) → delete PVC
-* **Secret Management**: S3 credentials injected securely via `use_secret_as_env()`
+* **Task Sequencing**: conditional download → quantize → (upload & evaluate in parallel) → delete PVC
+* **Secret Management**: S3 credentials injected securely via `use_secret_as_env()` when needed
 * **GPU Resources**: Allocated specifically with `set_accelerator_type/limit` for quantization tasks
 
 === Pipeline Components Deep Dive
 
-Let's examine each component in detail: 
+Let's examine each component in detail. The pipeline supports two download paths controlled by the `use_s3_download` parameter:
 
-=== `download_model` Component
+=== `download_model_from_s3` Component  (use_s3_download=True)
 
 [source,python]
 ----
 @dsl.component(...):
-def download_model(model_id: str, output_path: str):
-    from huggingface_hub import snapshot_download
-    snapshot_download(repo_id=model_id, local_dir=output_path)
-    print("Model downloaded successfully from HF.")
+def download_model_from_s3(model_s3_path: str, output_path: str):
+    import os
+    from boto3 import client
+    # Configure S3 client using environment variables
+    # List and download all objects from the specified S3 path
+    # Maintain directory structure during download
+    print('Finished downloading model from S3.')
 ----
 
-**Purpose**: Downloads the specified model from Hugging Face Hub to the shared PVC storage.
+**Purpose**: Downloads the specified model from S3 (MinIO) storage to the shared PVC storage.
 
 **Key Functions**:
 
-* Uses `snapshot_download` to fetch the complete model repository
-* Downloads model weights, tokenizer, and configuration files
+* Uses `boto3` client to connect to S3-compatible storage (MinIO)
+* Downloads complete model repository from the specified S3 path
+* Downloads model weights, tokenizer, and configuration files recursively
+* Maintains original directory structure during the download process
 * Stores all artifacts in the shared PVC for subsequent pipeline steps
 * Provides the foundation for the quantization process
+
+**Security Features**:
+
+* Uses Kubernetes secrets for S3 credentials (`s3_access_key`, `s3_secret_access_key`)
+* Accesses S3 endpoint and bucket information from environment variables
+* Supports secure connections to MinIO storage
+
+=== `download_model_from_hf` Component  (use_s3_download=False)
+
+[source,python]
+----
+@dsl.component(...):
+def download_model_from_hf(model_id: str, output_path: str):
+    from huggingface_hub import snapshot_download
+    import os
+    # Download complete model repository from HuggingFace Hub
+    # Maintains directory structure and downloads all model files
+    print('Finished downloading model from HuggingFace.')
+----
+
+**Purpose**: Downloads the specified model from HuggingFace Hub to the shared PVC storage.
+
+**Key Functions**:
+
+* Uses `huggingface_hub.snapshot_download` to fetch complete model repositories
+* Downloads model weights, tokenizer, configuration files, and additional assets
+* Provides an alternative to S3/MinIO storage for public models
+* Stores all artifacts in the shared PVC for subsequent pipeline steps
+* Supports direct access to thousands of pre-trained models on HuggingFace Hub
 
 === `quantize_model` Component
 
@@ -255,7 +325,7 @@ python quantization_pipeline.py
 [.bordershadow]
 image::quantization-compile-pipeline.png[title="Execute Pipeline Compilation in Terminal", link=self, window=blank, width=100%]
 
-=== Validation Step
+==== Validation Step
 Verify successful compilation:
 
 * `quantization_pipeline.yaml` file is created in the current directory
@@ -274,6 +344,7 @@ image::quantization-notebook-workbench-done.png[title="Access Workbench Actions 
 [.bordershadow]
 image::quantization-notebook-workbench-stop.png[title="Stop Workbench to Free GPU Resources", link=self, window=blank, width=100%]
 
+==== Validation Step
 Confirm successful download and cleanup:
 
 * Pipeline YAML file is saved to your local machine
@@ -284,7 +355,140 @@ Confirm successful download and cleanup:
 
 Follow these steps to import and execute the pipeline in OpenShift AI:
 
-=== Pipeline Import Process
+Pipeline runs can be triggered either from the OpenShift AI pipelines dashboard user interface or  using the Kubeflow Pipelines REST APIs. In this lab, we'll use the API method.
+
+To trigger the pipeline import and execution, you can use the following Kubeflow Pipelines REST APIs. Be sure to replace example values with your own as needed.
+
+=== 1. Obtain the Kubeflow Pipelines API Route
+
+First, get the OpenShift route for the Kubeflow Pipelines REST API. This is needed to construct the correct API endpoint URL:
+
+[source,bash]
+----
+oc get route ds-pipeline-dspa --template='{{ .spec.host }}' -n quantization
+----
+
+This will output a hostname like:
+`ds-pipeline-dspa-quantization.apps.cluster-xxxx.xxxx.sandboxNNN.opentlc.com`
+
+=== 2. Get your access token
+
+The Kubeflow Pipelines API route is secured using OpenShift OAuth, so you need to obtain a Bearer token for authentication. You can get your token with:
+
+[source,bash]
+----
+oc whoami --show-token
+----
+
+Copy the output token for use in the `Authorization` header.
+
+=== 3. Import (Upload) the Pipeline YAML
+
+Use the following `curl` command to upload your pipeline YAML file to the OpenShift AI pipelines API:
+
+[source,bash]
+----
+curl -X POST "https://<ROUTE>/apis/v2beta1/pipelines/upload" \
+  -H "Authorization: Bearer <YOUR_TOKEN>" \
+  -F "uploadfile=@/path/to/quantization_pipeline.yaml" \
+  -F "name=quantization-pipeline" \
+  -F "display_name=Model Quantization Pipeline" \
+  -F "description=Pipeline for quantizing and evaluating models" \
+  -F "namespace=quantization"
+----
+
+**Parameter details:**
+
+- `<ROUTE>`: The host you obtained in step 1 above.
+
+- `<YOUR_TOKEN>`: The token from step 2.
+
+- `uploadfile`: Path to your pipeline YAML file.
+
+- `name`: Internal pipeline name (no spaces).
+
+- `display_name`: Human-readable name shown in the UI.
+
+- `description`: (Optional) Description of the pipeline.
+
+- `namespace`: The OpenShift project/namespace (e.g., `quantization`).
+
+If successful, the response will include a `pipeline_id` you will need for the next step.
+
+=== 4. Run the Pipeline
+
+After uploading, trigger a pipeline run with:
+
+[source,bash]
+----
+curl -X POST "https://<ROUTE>/apis/v2beta1/runs" \
+  -H "Authorization: Bearer <YOUR_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pipeline_version_reference": {
+      "pipeline_id": "<PIPELINE_ID>"
+    },
+    "runtime_config": {
+      "parameters": {
+        "model_s3_path": "ibm-granite/granite-3.3-2b-instruct",
+        "output_path": "granite-int4-pipeline",
+        "quantization_type": "int4",
+        "use_s3_download": true
+      }
+    },
+    "display_name": "quantization-run-001"
+  }'
+----
+
+**Parameter details:**
+
+- `<ROUTE>`: The hostname from step 1.
+
+- `<YOUR_TOKEN>`: The token from step 2.
+
+- `<PIPELINE_ID>`: The pipeline ID returned from the upload step.
+
+- `runtime_config.parameters`: Set pipeline parameters as needed:
+  * `model_s3_path`: S3 path to the pre-uploaded model (used when `use_s3_download=true`)
+  * `model_id`: HuggingFace model identifier (used when `use_s3_download=false`)
+  * `output_path`: Output directory name for the quantized model
+  * `quantization_type`: Quantization method (`int4` or `int8`)
+  * `use_s3_download`: `true` for S3 download, `false` for HuggingFace download
+
+- `display_name`: Name for this run (appears in the UI).
+
+[TIP]
+====
+**Example for HuggingFace Download**: To use HuggingFace download instead, modify the parameters:
+```json
+"runtime_config": {
+  "parameters": {
+    "model_id": "ibm-granite/granite-3.3-2b-instruct",
+    "output_path": "granite-int4-pipeline", 
+    "quantization_type": "int4",
+    "use_s3_download": false
+  }
+}
+```
+Note: When using HuggingFace download, the `model_id` parameter is used instead of `model_s3_path`.
+====
+
+Now, if you go to the OpenShift AI web console pipelines tab, you'll see that the pipeline has been created and the run has been executed.
+
+[.bordershadow]
+image::quantization-import-pipeline-graph.png[title="Pipeline Graph Showing Connected Components", link=self, window=blank, width=100%]
+
+
+For more details on the available Kubeflow Pipelines (KFP) APIs—including how to list, manage, and interact with pipelines, runs, and experiments—refer to the upstream https://www.kubeflow.org/docs/components/pipelines/reference/api/kubeflow-pipeline-api-spec[KFP API documentation.]
+
+=== Manual upload and run: Running the pipeline via the OpenShift AI Web Console
+
+[NOTE]
+====
+You can also launch the pipeline directly from the OpenShift AI web console, which offers an intuitive graphical interface for importing and running pipelines. This method is optional—use it if you prefer a visual workflow or have not already started a run via the KFP REST API.
+====
+
+==== Pipeline Import Process
 
 * Log into your OpenShift AI dashboard 
 * In the project `quantization`, navigate to **Data Science Pipelines** → **Pipelines**
@@ -305,7 +509,7 @@ image::quantization-import-pipeline-select.png[title="Upload Pipeline YAML File 
 [.bordershadow]
 image::quantization-import-pipeline-graph.png[title="Pipeline Graph Showing Connected Components", link=self, window=blank, width=100%]
 
-==== Validation Step
+===== Validation Step
 Verify successful pipeline import:
 
 * Pipeline appears in the pipelines list with correct name
@@ -313,7 +517,7 @@ Verify successful pipeline import:
 * All components are properly connected with dependency arrows
 * No import error messages are displayed
 
-=== Pipeline Execution
+==== Pipeline Execution
 
 * To start a pipeline run, click the **Actions** button and select **Create run**:
 +
@@ -322,9 +526,11 @@ image::quantization-import-pipeline-create-run.png[title="Create New Pipeline Ru
 
 * Configure the pipeline parameters in the run creation form:
 ** **Name**: Provide a descriptive run name, e.g., `quantization-granite-3.3-2b-instruct`
-** **model_id**: HuggingFace model identifier (default: `ibm-granite/granite-3.3-2b-instruct`)
+** **model_s3_path**: S3 path to the pre-uploaded model (used when `use_s3_download=true`) (default: `ibm-granite/granite-3.3-2b-instruct`)
+** **model_id**: HuggingFace model identifier (used when `use_s3_download=false`) (default: `ibm-granite/granite-3.3-2b-instruct`)
 ** **output_path**: Directory name for the quantized model (default: `granite-int4-pipeline`)
 ** **quantization_type**: Quantization method to apply (options: `int4` or `int8`, default: `int4`)
+** **use_s3_download**: Whether to download from S3 (`true`) or HuggingFace (`false`) (default: `true`)
 +
 [.bordershadow]
 image::quantization-import-pipeline-create-run-params.png[title="Pipeline Run Parameters Configuration", link=self, window=blank, width=100%]
@@ -335,7 +541,7 @@ image::quantization-import-pipeline-create-run-params.png[title="Pipeline Run Pa
 [.bordershadow]
 image::quantization-pipeline-run-success.png[title="Successful Pipeline Execution Status", link=self, window=blank, width=100%]
 
-==== Validation Step
+===== Validation Step
 Verify successful pipeline execution:
 
 * All pipeline components show green "Succeeded" status
@@ -343,15 +549,16 @@ Verify successful pipeline execution:
 * Pipeline execution time is reasonable (typically 15-30 minutes)
 * Check the logs of each component for any warning messages
 
-=== Verifying Results
+==== Verifying Results
 
 * Check the model accuracy evaluation results by inspecting the pipeline logs
+* Regardless of the download method used (S3 or HuggingFace), the quantized model is always uploaded to S3 storage
 * Access the MinIO S3 dashboard and verify that the quantized model has been uploaded successfully:
 +
 [.bordershadow]
 image::quantization-pipeline-run-minio.png[title="Quantized Model Files in MinIO S3 Bucket", link=self, window=blank, width=100%]
 
-==== Final Validation Step
+===== Final Validation Step
 Confirm successful model quantization and upload:
 
 * Quantized model directory appears in S3 bucket with the specified `output_path` name
@@ -380,4 +587,3 @@ After completing the exercise, clean up resources to avoid unnecessary costs:
 * Check that no orphaned PVCs remain: Navigate to **Storage** → **PersistentVolumeClaims**
 
 IMPORTANT: The quantized models in S3 storage are your valuable outputs from this exercise. Only delete them if you're certain they're no longer needed.
-
