@@ -28,10 +28,11 @@ oc project vllm
 +
 [source,sh,role=execute]
 ----
-inferenceService:
-  storage:
-    mode: uri
-    storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
+deploymentMode: RawDeployment
+
+model:
+  modelNameOverride: granite-8b
+  uri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
   args:
     - "--disable-log-requests"
     - "--max-num-seqs=32"
@@ -48,8 +49,20 @@ inferenceService:
 +
 [source,sh,role=execute]
 ----
-helm install granite-8b workshop_code/deploy_vllm/vllm-kserve -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
+helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.9 \
+  -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml
 ----
+
+[TIP]
+====
+If you didn't add the redhat-ai-services helm chart repository to your local helm client, you can do so by running the following command:
+
+[source,console,role=execute,subs=attributes+]
+----
+helm repo add redhat-ai-services https://redhat-ai-services.github.io/helm-charts/
+helm repo update redhat-ai-services
+----
+====
 
 . Login to OpenShift AI and go to your *vllm* Data Science Project. Wait until the model fully deploys (green check) before continuing. 
 +

@@ -1,9 +1,7 @@
 deploymentMode: RawDeployment
 
-inferenceService:
-  storage:
-    mode: uri
-    storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
+model:
+  uri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
   args:
     - "--max-model-len=130000"
     - "--enable-auto-tool-choice"
