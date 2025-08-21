@@ -1,6 +1,0 @@
-apiVersion: v2
-appVersion: v0.7.3
-description: A Helm deploying vLLM with KServe on OpenShift AI
-name: vllm-kserve
-type: application
-version: 0.3.8

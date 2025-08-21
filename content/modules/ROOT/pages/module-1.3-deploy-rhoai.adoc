@@ -18,16 +18,14 @@ If you do use the RHAIIS image as seen in the previous module, you will run into
 
 You may view the helm chart at this link: https://github.com/redhat-ai-services/helm-charts/tree/main/charts/vllm-kserve and within our workshop repository under etx-llm-optimization-and-inference-leveraging/workshop_code/deploy_vllm/vllm-kserve.
 
-Let's take a look at our provided custom values file (etx-llm-optimization-and-inference-leveraging/workshop_code/deploy_vllm/vllm_rhoai_custom/values.yaml):
+Let's take a look at our provided custom values file (etx-llm-optimization-and-inference-leveraging/workshop_code/deploy_vllm/vllm_rhoai_custom_1/values.yaml):
 
 [source,console,role=execute,subs=attributes+]
 ----
 deploymentMode: RawDeployment
 
-inferenceService:
-  storage:
-    mode: uri
-    storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
+model:
+  uri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
   args:
     - "--max-model-len=130000"
     - "--enable-auto-tool-choice"
@@ -86,8 +84,20 @@ OPTIONAL: Before deploying, adjust your `values.yaml` file as you desire as desc
 [source,console,role=execute,subs=attributes+]
 ----
 oc create namespace rhaiis-demo
-helm install granite-8b-instruct workshop_code/deploy_vllm/vllm-kserve -f workshop_code/deploy_vllm/vllm_rhoai_custom/values.yaml 
+helm install granite-8b-instruct redhat-ai-services/vllm-kserve --version 0.5.9 \
+  -f workshop_code/deploy_vllm/vllm_rhoai_custom_1/values.yaml 
 ----
+
+[TIP]
+====
+If you didn't add the redhat-ai-services helm chart repository to your local helm client, you can do so by running the following command:
+
+[source,console,role=execute,subs=attributes+]
+----
+helm repo add redhat-ai-services https://redhat-ai-services.github.io/helm-charts/
+helm repo update redhat-ai-services
+----
+====
 
 ## Verify deployment
 
