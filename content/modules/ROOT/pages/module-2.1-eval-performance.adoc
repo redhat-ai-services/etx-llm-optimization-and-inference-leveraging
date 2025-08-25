@@ -216,7 +216,7 @@ GuideLLM captures the following metrics during a full sweep:
 
 . **Time per output token (mean, median, p99)**
 
-See the complete https://github.com/neuralmagic/guidellm/blob/main/docs/metrics.md[metrics documentation]. 
+See the complete https://github.com/neuralmagic/guidellm/blob/main/docs/metrics.md[metrics documentation^]. 
 
 ### Reading Output
 

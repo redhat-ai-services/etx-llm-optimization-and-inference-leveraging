@@ -90,11 +90,33 @@ oc apply -f guidellm-pipeline/pipeline/guidellm-benchmark-task.yaml -n vllm
 oc apply -f guidellm-pipeline/pipeline/mino-bucket.yaml -n vllm
 ----
 
-. Lets run the GuideLLM pipeline! Open the _guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml_ file. Let's go through some of the GuideLLM arguments we're setting. The pipeline will run a benchmark for 1, 4, 8, and 16 concurrent users. 
+. Lets run the GuideLLM pipeline! Open the _guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml_ file. Let's go through some of the important GuideLLM arguments we're setting. The pipeline will run a benchmark for 1, 4, 8, and 16 concurrent users. 
 +
 image::pipelinerun.png[pipelinerun]
++
+1. *target* -  Specifies the target path for the backend to run benchmarks against. +
+2. *model-name* - Allows selecting a specific model from the server. If not provided, it defaults to the first model available on the server. Useful when multiple models are hosted on the same server. +
+3. *processor* - To calculate performance metrics like tokens per second, the benchmark script needs to count how many tokens were generated. To do this accurately, it must use the exact same tokenizer that the model uses. Different models have different tokenizers. 
+4. *data-config* -  Specifies the dataset to use. This can be a HuggingFace dataset ID, a local path to a dataset, or standard text files such as CSV, JSONL, and more. Additionally, synthetic data configurations can be provided using JSON or key-value strings. Synthetic data options include:
++
+* prompt_tokens: Average number of tokens for prompts.
+* output_tokens: Average number of tokens for outputs.
+* TYPE_stdev, TYPE_min, TYPE_max: Standard deviation, minimum, and maximum values for the specified type (e.g., prompt_tokens, output_tokens). If not provided, will use the provided tokens value only.
+* samples: Number of samples to generate, defaults to 1000.
+* source: Source text data for generation, defaults to a local copy of Pride and Prejudice.
++
+5. *rate-type* - Defines the type of benchmark to run (default sweep). Supported types include:
++
+* synchronous: Runs a single stream of requests one at a time. --rate must not be set for this mode.
+* throughput: Runs all requests in parallel to measure the maximum throughput for the server (bounded by GUIDELLM__MAX_CONCURRENCY config argument). --rate must not be set for this mode.
+* concurrent: Runs a fixed number of streams of requests in parallel. --rate must be set to the desired concurrency level/number of streams.
+* constant: Sends requests asynchronously at a constant rate set by --rate.
+* poisson: Sends requests at a rate following a Poisson distribution with the mean set by --rate.
+* sweep: Automatically determines the minimum and maximum rates the server can support by running synchronous and throughput benchmarks, and then runs a series of benchmarks equally spaced between the two rates. The number of benchmarks is set by --rate (default is 10).
++
+6. *rate* - request rate.
 
-. Update the _target_ parameter with your inference endpoint. Run the pipeline:
+. Update the *target* parameter with your inference endpoint and run the pipeline:
 +
 [source,sh,role=execute]
 ----
@@ -114,6 +136,8 @@ image::ocp_pipelinerun_details.png[pipelinerun details in ocp]
 NOTE: We'll view the results of the benchmark in the next section, but feel free to access your Minio instance and look at the files in the *guidellm-benchmark* bucket. 
 
 . Go to OpenShift AI and create a workbench with a *Standard Data Science* notebook. Everything else can be let as the default configuration.
++
+NOTE: Feel free to use an existing workbench if you already have one running from previous exercises. 
 
 . Open your workbench once it starts up and upload all of the files under *guidellm_notebook_charts*.
 +

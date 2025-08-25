@@ -9,12 +9,14 @@ You've mastered model quantization techniques that deliver transformative cost a
 ## Key Techniques & Results
 
 **Quantization Methods Mastered**:
+
 - **W4A16 & W8A8** schemes for different hardware targets
 - **SmoothQuant** for activation outlier management
 - **GPTQ** for layer-wise optimization with minimal accuracy loss
 - **Automated pipelines** using OpenShift AI for production workflows
 
 **Dramatic Performance Gains**:
+
 - **Memory Reduction**: 50-75% reduction in model footprint
 - **Quality Preservation**: >95% of original model accuracy maintained
 - **Cost Savings**: 2-4x reduction in infrastructure requirements
@@ -23,14 +25,20 @@ You've mastered model quantization techniques that deliver transformative cost a
 ## Production Implementation
 
 ### Quantization Decision Framework
+
 - **W4A16**: Memory-constrained inference, edge devices, any GPU
 - **W8A8-INT8**: High-throughput serving on Ampere/Turing GPUs  
 - **W8A8-FP8**: Accuracy-sensitive workloads on Hopper+ GPUs
 - **Calibration-free**: When no task-specific data available
 
 ### Pipeline Automation
-Built repeatable quantization workflows:
-1. **Model selection** → 2. **Calibration data prep** → 3. **Quantization execution** → 4. **Quality validation** → 5. **Production deployment**
+Build repeatable quantization workflows:
+
+1. **Model selection** → 
+2. **Calibration data prep** → 
+3. **Quantization execution** → 
+4. **Quality validation** → 
+5. **Production deployment**
 
 ### Quality Assurance
 - Representative calibration datasets for optimal results
@@ -40,11 +48,13 @@ Built repeatable quantization workflows:
 ## Business Impact Framework
 
 **Infrastructure Cost Reduction**:
+
 - 70B models: 140GB → 35GB (W4A16)
 - 400B models: 60% deployment cost reduction
 - Enables deployment on smaller, more affordable hardware
 
 **Client Value Propositions**:
+
 - **Democratization**: Advanced models accessible with limited GPU budgets
 - **Scalability**: Same hardware serves more users or larger models
 - **Edge Deployment**: Compressed models enable on-premise/edge scenarios
@@ -53,12 +63,14 @@ Built repeatable quantization workflows:
 ## Technical Consulting Applications
 
 ### Client Qualification Signals
+
 - "Models don't fit on our GPUs"
 - "Inference costs are too high"  
 - "Need to scale but can't buy more hardware"
 - "Want to deploy on-premise/edge"
 
 ### Engagement Strategy
+
 - **Discovery**: Assess current model sizes, hardware constraints, accuracy requirements
 - **PoC**: Demonstrate compression with client models, quantify savings
 - **Production**: Implement automated quantization pipelines, monitor quality
@@ -71,6 +83,7 @@ Built repeatable quantization workflows:
 ## Integration with Optimization
 
 Quantization amplifies your Module 3 optimization work:
+
 - **Compound benefits**: Optimized + quantized models achieve maximum efficiency
 - **Memory management**: Skills transfer to managing compressed model memory patterns
 - **Performance monitoring**: Same metrics apply with quantization-specific considerations
@@ -78,12 +91,14 @@ Quantization amplifies your Module 3 optimization work:
 ## Production Best Practices
 
 **Quality Validation Process**:
+
 - Baseline accuracy measurement before quantization
 - Representative calibration data collection (1000+ samples)
 - Systematic evaluation of compression vs accuracy trade-offs
 - Production A/B testing for user impact assessment
 
 **Deployment Strategy**:
+
 - Start with weight-only quantization (W4A16) for safety
 - Progress to weight+activation (W8A8) for maximum efficiency
 - Implement gradual rollout with performance monitoring

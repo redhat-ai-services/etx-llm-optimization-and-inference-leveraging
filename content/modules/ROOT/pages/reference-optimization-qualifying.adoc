@@ -56,6 +56,7 @@ Effective qualification requires understanding four critical dimensions of custo
 . *Hardware Environment:* "What GPU generation supports your infrastructure?"
 
 *Regulatory Discovery:*
+
 * "Do you have approved models you can't currently deploy due to infrastructure constraints?"
 * "What would maintaining regulatory approval while reducing infrastructure costs be worth?"
 * "How do you currently handle functional equivalence validation for model modifications?"
