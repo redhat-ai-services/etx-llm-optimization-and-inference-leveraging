@@ -1,5 +1,6 @@
 deploymentMode: RawDeployment
 
+fullnameOverride: granite-8b
 model:
   uri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct
   args:
