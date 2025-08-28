@@ -630,8 +630,8 @@ This is tied to major drawback holding back the adoptability of speculative deco
 in order to achieve an high acceptance rate.
 Being a data-dependent technique, this is mostly useful when it is 
 
-== Batch Processing Case Study: Throughput Optimization for granite-3.1-8b-instruct with vLLM
-TODO - write an intro paragraph on a processing use case - Batch processing job that analyzes 100,000 customer reviews every night. 
+== Bonus: Batch Processing Case Study: Throughput Optimization for granite-3.1-8b-instruct with vLLM
+What arguments would you change for a batch processing job that analyzes 100,000 customer reviews every night. 
 
 == Final Notes
 
@@ -647,6 +647,7 @@ Important engine arguments
 - VLLM_NO_USAGE_STATS=1
 - DO_NOT_TRACK=1
 
+////
 [#configuration]
 === vLLM Configuration
 
@@ -672,3 +673,4 @@ Important engine arguments
 * Model Architecture and GPU Architecture
 * Tuning/configuring vLLM
 * Performance analysis
+////

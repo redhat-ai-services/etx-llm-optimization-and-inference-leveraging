@@ -84,19 +84,19 @@ pipeline-connection
 [.console-input]
 [source, text]
 [subs=attributes+]
-<<ACCESS_KEY_FOR_YOUR_MINIO_SETUP_FROM_PREVIOUS_LAB>>
+minio
 ** Secret Key:
 [.lines_space]
 [.console-input]
 [source, text]
 [subs=attributes+]
-<<SECRET_KEY_FOR_YOUR_MINIO_SETUP_FROM_PREVIOUS_LAB>>
+minio123
 ** Endpoint:
 [.lines_space]
 [.console-input]
 [source, text]
 [subs=attributes+]
-<<API_ENDPOINT_FOR_YOUR_MINIO_SETUP_FROM_PREVIOUS_LAB>>
+http://minio.ic-shared-minio.svc.cluster.local:9000
 ** Region:
 [.lines_space]
 [.console-input]
@@ -229,7 +229,7 @@ You have now completed the setup and can proceed with the quantization exercise.
 Before starting the quantization exercise, verify:
 
 * Repository is cloned successfully in Jupyter
-* `optimization_lab/llm_compressor/` folder exists and contains:
+* `/workshop_code/quantization/llm_compressor` folder exists and contains:
   - `weight_activation_quantization.ipynb` notebook
   - `minio.yaml` file
   - `quantization_pipeline.py` file
@@ -241,7 +241,7 @@ _Estimated time: 15-20 minutes (depending on model size and GPU performance)_
 
 Now you'll perform the actual quantization using the provided Jupyter notebook.
 
-* Navigate to the `optimization_lab/llm_compressor` folder
+* Navigate to the `workshop_code/quantization/llm_compressor` folder
 * Open the notebook `weight_activation_quantization.ipynb`:
 
 [.bordershadow]
