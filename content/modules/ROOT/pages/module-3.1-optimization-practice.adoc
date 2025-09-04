@@ -50,7 +50,7 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.9 \
+helm upgrade granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
   -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml
 ----
 +
@@ -314,7 +314,7 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.9 \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
   --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
 ----
 
@@ -353,7 +353,7 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.9 \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
   --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
 ----
 
@@ -482,7 +482,7 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.9 \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
   --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
 ----
 

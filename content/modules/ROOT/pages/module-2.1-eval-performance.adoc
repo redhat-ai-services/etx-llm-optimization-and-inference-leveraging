@@ -173,6 +173,10 @@ Set your external model inference endpoint
 export INFERENCE_ENDPOINT=$(oc get inferenceservice granite-8b -n vllm -o jsonpath='{.status.url}')
 ----
 
+NOTE: Make sure your granite-8b model is deployed on OpenShift AI. If you need to deploy it run: +
+`helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
+  --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm`
+
 Run the pipeline with necessary parameters in a terminal. Accept the defaults when prompted. If you chose a different model adjust the *target* parameter. 
 
 [source,console,role=execute,subs=attributes+]
