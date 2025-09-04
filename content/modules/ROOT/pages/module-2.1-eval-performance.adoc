@@ -51,13 +51,25 @@ For our lab today, we will utilize the tekton pipeline on our OpenShift AI clust
 * Version control / auditability
 * Better handling of complex, multi-stage workflows
 
-First, clone the benchmark pipeline repo, apply the PVC, task, and pipeline. We'll also create an s3 bucket in Minio where the pipeline will upload the benchmark results.
+First, we'll clone the ETX vLLM optimization repo. Then we'll clone the benchmark pipeline repo, apply the PVC, task, and pipeline. We'll also create an s3 bucket in Minio where the pipeline will upload the benchmark results.
 
+. Clone the ETX vLLM optimization repo.
++
 [source,console,role=execute,subs=attributes+]
 ----
-https://github.com/jhurlocker/guidellm-pipeline.git 
+git clone https://github.com/redhat-ai-services/etx-llm-optimization-and-inference-leveraging.git
 ----
 
+. Clone the GuideLLM pipeline repo.
++
+[source,console,role=execute,subs=attributes+]
+----
+cd etx-llm-optimization-and-inference-leveraging
+git clone https://github.com/jhurlocker/guidellm-pipeline.git 
+----
+
+. Apply the PVC, task, and pipeline
++
 [source,console,role=execute,subs=attributes+]
 ----
 oc apply -f guidellm-pipeline/pipeline/upload-results-task.yaml -n vllm
