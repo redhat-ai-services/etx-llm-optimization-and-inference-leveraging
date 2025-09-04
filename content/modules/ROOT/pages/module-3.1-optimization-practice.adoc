@@ -578,13 +578,16 @@ V1 still not supporting this particular speculation technique. Mind that what we
 substantial architectural differences. 
 
 What to try: You'll need to specify a smaller draft model. A good starting point for Llama/granite might be a smaller Llama/granite variant or as in this 
-example a speculator trained specifically for our use-case. Let's change the vllm startup command:
+example a speculator trained specifically for our use-case. Let's redeploy with the following engine arguments:
 
+////
 ```bash
 VLLM_CMD="vllm serve $MODEL --max-num-seqs $MAX_NUM_SEQS --max-model-len 2048 --enable-chunked-prefill --max-num-batched-tokens 2048  --speculative-config\
  '{\"model\": \"ibm-granite/granite-3.0-8b-instruct-accelerator\", \"num_speculative_tokens\": 4, \"draft_tensor_parallel_size\": 1}' &"
 ```
+//// 
 
+. Update the workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml with the following values.
 +
 [source,sh,role=execute]
 ----
@@ -593,59 +596,91 @@ deploymentMode: RawDeployment
 fullnameOverride: granite-8b
 model:
   modelNameOverride: granite-8b
-  uri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-3.3-8b-instruct-accelerated
+  uri: oci://quay.io/redhat-ai-services/modelcar-catalog:llama-3.1-8b-instruct-eagle3
+  env:
+    - name: HF_HUB_OFFLINE
+      value: "1"
   args:
-    - "--disable-log-requests"
-    - "--max-num-seqs=32"
-    - "--max-model-len=2048"
-    - "--max-num-batched-tokens=2048"
-    - "--enable-chunked-prefill"
-    - "--speculative_config={num_speculative_tokens: 4, draft_tensor_parallel_size: 1}"
+    - --disable-log-requests
+    - --max-num-seqs=32
+    - --max-model-len=2048
+    - --max-num-batched-tokens=2048
+    - '--speculative-config={"model": "/mnt/models/llama-3.1-8b-instruct-eagle3", "method": "eagle3", "num_speculative_tokens": 4, "draft_tensor_parallel_size": 1}'
 ----
+
+//// 
+[source,sh,role=execute]
+----
+deploymentMode: RawDeployment
+
+fullnameOverride: granite-8b
+model:
+  modelNameOverride: granite-8b
+  uri: oci://quay.io/jhurlocker/llama3.1-8b-eagle3-spec-decode:latest
+  args:
+    - --disable-log-requests
+    - --max-num-seqs=32
+    - --max-model-len=2048
+    - --max-num-batched-tokens=2048
+    - --model=/mnt/models/Llama-3.1-8B-Instruct
+    - '--speculative-config={"model": "/mnt/models/Llama-3.1-8B-Instruct-speculator.eagle3/models", "method": "eagle3", "num_speculative_tokens": 4, "draft_tensor_parallel_size": 1}'
+----
+////
+
 
 . Rerun the helm deployment
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.9 \
+helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
   --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
 ----
-
++
 vLLM will spin up an instance with the two models. 
 There's no free-lunch though, mind that the GPU memory will now be comprised of: the original `ibm-granite/granite-3.1-8b-instruct` weights + `ibm-granite/granite-3.0-8b-instruct-accelerator` proposer weights
  + a KV cache for *both* models.
-
++
 image::spec.png[specized]
 
-
+. Send in a request to the inference endpoint.
++
+[source,sh,role=execute]
+----
+curl -X POST -H "Content-Type: application/json" -d '{
+    "prompt": "What does Red Hat do?",
+    "max_tokens": 100,
+    "model": "granite-8b"
+}' https://<YOUR-EXTERNAL-INFERENCE-ENDPOINT>/v1/completions | jq
+----
++
 A key metric to keep an eye on when serving a speculator is the `acceptance rate`:
-```
-INFO 07-17 11:11:38 [metrics.py:439] Speculative metrics: Draft acceptance rate: 0.381, System efficiency: 0.427, Number of speculative tokens: 3, Number of accepted tokens: 3781, Number of draft tokens: 9930, Number of emitted tokens: 5657.
-```
-
++
+image::spec-decode-log.png[spec decode log]
++
 This is the percentage of tokens being produced by the speculator that match the ones of the draft model.
 Here we're still on the lower side as ideally you would want to see this number be higher.
-
++
 This is tied to major drawback holding back the adoptability of speculative decoding, which is the fact that the speculator needs to be trained specifically for the model you intend to deploy,
 in order to achieve an high acceptance rate.
+////
 Being a data-dependent technique, this is mostly useful when it is 
+////
 
 == Bonus: Batch Processing Case Study: Throughput Optimization for granite-3.1-8b-instruct with vLLM
-What arguments would you change for a batch processing job that analyzes 100,000 customer reviews every night. 
+What arguments would you change for a batch processing job that analyzes 100,000 customer reviews every night?
 
 == Final Notes
 
 Optimization is an iterative process. As you tune vLLM, continuously monitor key metrics:
 
-- Time To First Token (TTFT): Critical for interactive applications.
-- Throughput (Tokens/sec or Requests/sec): To ensure your concurrency goals are met.
-- GPU Utilization: High utilization indicates efficient use of resources.
-- GPU KV cache usage: At very high rates early on into a benchmark, it is an indicator of likely insufficient memory for KV cache.
-
-Important engine arguments
-- https://docs.vllm.ai/en/v0.9.0/usage/usage_stats.html
-- VLLM_NO_USAGE_STATS=1
-- DO_NOT_TRACK=1
+* Time To First Token (TTFT): Critical for interactive applications.
+* Throughput (Tokens/sec or Requests/sec): To ensure your concurrency goals are met.
+* GPU Utilization: High utilization indicates efficient use of resources.
+* GPU KV cache usage: At very high rates early on into a benchmark, it is an indicator of likely insufficient memory for KV cache.
+* Important engine arguments for customers that don't want to send data to the vLLM team
+** https://docs.vllm.ai/en/stable/usage/usage_stats.html[^]
+** VLLM_NO_USAGE_STATS=1
+** DO_NOT_TRACK=1
 
 ////
 [#configuration]
