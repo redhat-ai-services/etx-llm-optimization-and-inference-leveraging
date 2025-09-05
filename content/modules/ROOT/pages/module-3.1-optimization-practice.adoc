@@ -2,7 +2,7 @@
 [#optimization-practice]
 = vLLM & Performance Tuning
 
-== Chatbot Case Study: Latency Optimization for granite-3.3-8b-instruct with vLLM
+== AI Assistant Case Study: Latency Optimization for granite-3.3-8b-instruct with vLLM
 
 Let's apply our knowledge to a concrete scenario: you need to serve granite-3.3-8b-instruct that is integrated with a chat application. Your primary goal is to minimize inference latency pass:[<span title="Latency: The time it takes for a single request to complete." style="cursor: help;">&#128161;</span>] for a given number of concurrent users -32 in this case- with an expected generation length <2048 tokens. 
 As you have limited flexibility to scale GPU resources, you want to understand the key vLLM parameters and strategies to maximize performance before simply adding more hardware.
@@ -50,8 +50,8 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
-  -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml
+helm uninstall granite-8b && \
+helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 +
 [TIP]
@@ -68,6 +68,16 @@ helm repo update redhat-ai-services
 . Login to OpenShift AI and go to your *vllm* Data Science Project. Wait until the model fully deploys (green check) before continuing. 
 +
 image::granite-deployed-rhoai.png[Granite deployed on RHOAI]
++
+[TIP]
+====
+To watch the pod status from the console run the following command:
+
+[source,console,role=execute,subs=attributes+]
+----
+oc get pods --watch -n vllm | grep -E '(^NAME|granite-8b-predictor)'
+----
+====
 
 . We'll be running an OpenShift pipeline with GuideLLM to benchmark our model as we step through the optimizations. Clone the following repository. 
 +
@@ -314,8 +324,8 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
-  --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
+helm uninstall granite-8b && \
+helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 
 . After the model is redeployed take a look at the KV Cache size in the pod's log file. Note that the KV Cache size is now smaller than it was before.
@@ -353,8 +363,8 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
-  --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
+helm uninstall granite-8b && \
+helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 
 . After the model redeploys update the _/guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml_ *rate* to 4.0. 
@@ -482,8 +492,8 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
-  --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
+helm uninstall granite-8b && \
+helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 
 . After the model redeploys update the _/guidellm-pipeline/pipeline/guidellm-pipelinerun.yaml_ *rate* to 1.0, 4.0, 8.0, 16.0. 
@@ -632,8 +642,8 @@ model:
 +
 [source,sh,role=execute]
 ----
-helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
-  --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm
+helm uninstall granite-8b && \
+helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 +
 vLLM will spin up an instance with the two models. 
