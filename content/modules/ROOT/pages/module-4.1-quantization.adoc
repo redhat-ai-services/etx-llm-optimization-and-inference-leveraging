@@ -162,9 +162,10 @@ With your Data Connection and Pipeline Server configured, you can now create the
 image::quant-create-wb.png[title="Create Workbench Button in quantization Project", link=self, window=blank, width=100%]
 * Configure the workbench with these settings:
 ** **Name**: `granite-quantization` (or your preferred name)
-** **Image Selection**: `Minimal Python` or `Standard Data Science`
-** **Container Size**: `Medium`
+** **Image Selection**: `CUDA`
+** **Container Size**: `Standard`
 ** **Accelerator**: `NVIDIA-GPU`
+** **Number of accelerators**: `2`
 +
 [.bordershadow]
 image::quant-launch-workbench-01.png[title="Workbench Configuration Settings with GPU Accelerator", link=self, window=blank, width=100%]
@@ -214,13 +215,12 @@ With Jupyter running, clone the exercise repository to access the quantization n
 image::quant-git-clone-1.png[title="Open Git Clone Interface in Jupyter", link=self, window=blank, width=100%]
 
 * Specify the Git repository as:
-[.console-input]
-[source,adoc]
-[subs=attributes+]
++
+[source,sh,role=execute]
 ----
 https://github.com/redhat-ai-services/etx-llm-optimization-and-inference-leveraging.git
 ----
-
++
 [.bordershadow]
 image::quant-git-clone-2.png[title="Successfully Cloned Repository in Jupyter Environment", link=self, window=blank, width=100%]
 
