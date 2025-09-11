@@ -197,11 +197,11 @@ tkn pipeline start guidellm-benchmark-pipeline -n vllm \
 
 Download the benchmark results from the *guidellm-benchmark* bucket in Minio and open the *benchmark-<TIMESTAMP>.txt* in a text editor.
 
-Get the route to the Minio UI. The login is *_admin/admin123_*
+Get the route to the Minio UI. The login is *_minio/minio123_*
 
 [source,console,role=execute,subs=attributes+]
 ----
-oc get route minio-ui -n ic-shared-minio -o jsonpath='{.spec.host}'
+oc get route console -n ic-shared-minio -o jsonpath='{.spec.host}'
 ----
 
 Minio bucket
