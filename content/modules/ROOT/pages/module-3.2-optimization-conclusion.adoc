@@ -6,18 +6,20 @@
 
 You've mastered vLLM performance optimization techniques through hands-on granite-3.3-8b-instruct tuning, gaining practical experience with parameters that directly impact production performance.
 
-## Key Techniques & Results
-
-**Parameters Mastered**:
-- `max_model_len`, `max_num_seqs`, `block_size`, `gpu_memory_utilization`
-- KV cache configuration and PagedAttention tuning
-- Dynamic batching and queue management
-
-**Typical Performance Gains**:
-- **TTFT**: 20-50% improvement (target: <200ms)
-- **Throughput**: 25-75% increase in requests/second  
-- **Cost**: 30-50% reduction per request
-- **GPU Utilization**: >80% during peak loads
+// ## Key Techniques & Results
+//
+// **Parameters Mastered**:
+//
+// - `max_model_len`, `max_num_seqs`, `block_size`, `gpu_memory_utilization`
+// - KV cache configuration and PagedAttention tuning
+// - Dynamic batching and queue management
+//
+// **Typical Performance Gains**:
+//
+// - **TTFT**: 20-50% improvement (target: <200ms)
+// - **Throughput**: 25-75% increase in requests/second  
+// - **Cost**: 30-50% reduction per request
+// - **GPU Utilization**: >80% during peak loads
 
 ## Production Application
 
@@ -39,6 +41,7 @@ You've mastered vLLM performance optimization techniques through hands-on granit
 **Cost Impact**: `Cost Savings = (Original GPU Hours - Optimized GPU Hours) × Hourly Rate`
 
 **Client Engagement**:
+
 - **Discovery**: Identify bottlenecks, quantify opportunities
 - **PoC**: Demonstrate improvements, establish baselines
 - **Production**: Apply methodology, implement monitoring
@@ -46,6 +49,7 @@ You've mastered vLLM performance optimization techniques through hands-on granit
 ## Integration with Module 4
 
 Your optimization foundation enables quantization success:
+
 - **Performance baseline** for measuring quantization impact
 - **Memory management skills** essential for compressed models  
 - **Throughput optimization** compounds with quantization gains

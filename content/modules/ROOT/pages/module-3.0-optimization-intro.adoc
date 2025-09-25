@@ -51,7 +51,8 @@ Review optimization results, best practices summary, and guidelines for applying
 == Prerequisites
 
 Before starting this module, ensure you have:
-* Completed Module 1 (Deployment) and Module 2 (Evaluation) 
+
+* Completed Module 2 (Evaluation) 
 * Access to an OpenShift cluster with GPU resources
 * Basic understanding of inference serving concepts
 * GuideLLM benchmarking experience from Module 2
@@ -59,6 +60,7 @@ Before starting this module, ensure you have:
 == Success Metrics
 
 By module completion, you should achieve:
+
 * **Measurable TTFT improvement**: Reduce time to first token by 20-50%
 * **Increased throughput**: Handle more concurrent requests with the same hardware
 * **Optimized resource usage**: Achieve >80% GPU utilization during peak loads
