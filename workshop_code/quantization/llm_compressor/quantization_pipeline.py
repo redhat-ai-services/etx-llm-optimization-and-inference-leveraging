@@ -347,7 +347,7 @@ def quantization_pipeline(
     model_s3_path: str="ibm-granite/granite-3.3-2b-instruct",  # S3 path to pre-uploaded model
     output_path: str="granite-int4-pipeline",
     quantization_type: str="int4",
-    use_s3_download: bool=True,  # Set to True to use S3, False to use HF
+    use_s3_download: bool=False,  # Set to True to use S3, False to use HF
 ):
     #Steps:
     # 1) Download model
