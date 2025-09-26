@@ -4,14 +4,14 @@
 
 == AI Assistant Case Study: Latency Optimization for granite-3.3-8b-instruct with vLLM
 
-Let's apply our knowledge to a concrete scenario: you need to serve granite-3.3-8b-instruct that is integrated with a chat application. Your primary goal is to minimize inference latency pass:[<span title="Latency: The time it takes for a single request to complete." style="cursor: help;">&#128161;</span>] for a given number of concurrent users -32 in this case- with an expected generation length <2048 tokens. 
+Let's apply our knowledge to a concrete scenario: you need to serve granite-3.3-8b-instruct that is integrated with a chat application. Your primary goal is to minimize inference latency for a given number of concurrent users - 32 in this case - with an expected generation length <2048 tokens. 
 As you have limited flexibility to scale GPU resources, you want to understand the key vLLM parameters and strategies to maximize performance before simply adding more hardware.
 
 == Introduction
 
 Before diving into tuning, it's important to understand the key performance considerations in vLLM:
 
-*Latency*: The time it takes for a single request to complete. Of particular importance here is going to be tracking the Time To First Token - *TTFT* pass:[<span title="TTFT: How quickly the user sees the first word of the response." style="cursor: help;">&#128161;</span>], which will ensure the user can experience snappier responses.
+*Latency*: The time it takes for a single request to complete. Of particular importance here is going to be tracking the Time To First Token (*TTFT*), which will ensure the user can experience snappier responses.
 
 *Throughput*: The number of requests (or tokens) processed per unit of time. While we're optimizing for latency, higher throughput often means better resource utilization, which can indirectly help avoid latency spikes due to queuing.
 
@@ -40,7 +40,7 @@ model:
     - "--max-model-len=2048"
 ----
 +
-*--disable-log-requests* is used to prevent the logging of detailed request information. By default, vLLM logs various details about each incoming request, which can be useful for debugging and monitoring. However, in production environments or when high performance is critical, excessive logging can consume resources and generate large log files. The --disable-log-requests flag addresses this by turning off the detailed logging of individual requests.
+*--disable-log-requests* is used to prevent the logging of detailed request information. By default, vLLM logs various details about each incoming request, which can be useful for debugging and monitoring. However, in production environments or when high performance is critical, excessive logging can consume resources and generate large log files. The `--disable-log-requests` flag addresses this by turning off the detailed logging of individual requests.
 +
 *--max-num-seqs* configuring the server to handle a maximum of 32 concurrent requests in a single parallel computation step (a batch). For example, if 32 different users send a prompt to your chatbot at the same time.
 +
@@ -267,7 +267,8 @@ Let's take a look at some of the most popular vllm configurations.
 *Goal*: Set this to the minimum _reasonable_ length for your use case. Too small means requests get truncated; too large means less space for KVCache, which will impact your performance.
 At startup, vllm will profile the model using this value, as it needs to ensure it is able to serve at least one request with length=max-model-len.
 This is also a trade-off with the next parameter, `max-num-seqs`.
-Tuning: If most of your requests are short, keeping max-model-len tighter can allow more requests into the batch (by increasing `max-num-seqs`).
+
+**Tuning**: If most of your requests are short, keeping max-model-len tighter can allow more requests into the batch (by increasing `max-num-seqs`).
 
 NOTE: `max-num-batched-tokens` is a highly related parameter. It's limiting the amount of tokens the scheduler can schedule, rather than what the model can produce.
 So the actual number limiting the amount of memory allocated for the model runtime is actually `min(max-model-len, max-num-batched-tokens)`.
@@ -293,7 +294,7 @@ model:
 +
 image::granite-pod.png[Granite pod]
 +
-Note the KV cache size at the top of the log
+Note the Available KV cache size at the top of the log
 +
 [subs=+quotes]
 ----
@@ -328,7 +329,7 @@ helm uninstall granite-8b && \
 helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml 
 ----
 
-. After the model is redeployed take a look at the KV Cache size in the pod's log file. Note that the KV Cache size is now smaller than it was before.
+. After the model is redeployed take a look at the Available KV Cache size in the pod's log file. Note that the Available KV Cache size is now smaller than it was before.
 +
 [subs=+quotes]
 ----
@@ -548,27 +549,27 @@ times as less data is moved around (model weights+activations) and less sequenti
 For this particular use-case, consider `ibm-granite/granite-3.1-2b-instruct`.
 
 
-=== Using a different model
+== Using a different model
 
 While Granite 3 is a strong dense model, for certain latency-sensitive scenarios, considering a Mixture-of-Experts (MoE) model like Mixtral 8x7B could be a 
 compelling alternative.
 
-Why MoE for Latency? MoE models have a large total number of parameters (e.g., Mixtral 8x7B has 47B total parameters), but critically, 
+**Why MoE for Latency?** MoE models have a large total number of parameters (e.g., Mixtral 8x7B has 47B total parameters), but critically, 
 they only activate a sparse subset of these parameters (e.g., 13B for Mixtral 8x7B) for each token generated. 
 This means the actual computational cost per token is significantly lower than a dense model of its total parameter count.
 Which is especially true when sharding experts over multiple GPUs with MoE especially with vLLM's optimized handling of MoE sparsity. 
 
-Trade-offs: While MoE models can offer lower inference latency per token due to their sparse activation, they still require enough GPU memory 
+**Trade-offs**: While MoE models can offer lower inference latency per token due to their sparse activation, they still require enough GPU memory 
 to load the entire model's parameters, not just the active ones. So, Mixtral 8x7B will demand more VRAM than Llama 3 8B,
 even if it's faster per token. You'll need sufficient GPU memory (e.g., a single A100 80GB or multiple smaller GPUs with tensor parallelism) to fit the full 47B parameters.
 
 vLLM has strong support for MoE models like Mixtral, including optimizations for their unique sparse compute patterns and dynamic routing.
 
-Consider When: Your application might benefit from the increased quality often associated with larger (total parameter) MoE models, combined with the per-token speed advantages 
+**Consider When**: Your application might benefit from the increased quality often associated with larger (total parameter) MoE models, combined with the per-token speed advantages 
 of their sparse computation.
 
 
-== Speculative Decoding.
+== Speculative Decoding
 
 Speculative decoding is a powerful technique to reduce the generation latency, particularly noticeable for the Time To First Token (TTFT).
 Speculative decoding is fundamentally a tradeoff: spend a little bit of extra compute to reduce memory movement.
@@ -578,16 +579,17 @@ However, at higher throughputs or batch sizes, we are compute-bound, and specula
 
 image::spec_dec.png[spec_dec]
 
-The graph here from https://developers.redhat.com/articles/2025/07/01/fly-eagle3-fly-faster-inference-vllm-speculative-decoding#speculative_decoding__a_solution_for_faster_llms
-highlighs the tradeoffs of speculative decoding at low request rate vs bigger batch sizes.
-Take away message: as long as the number of requests is bound to use a non-intensive amount of GPU resources (lower req/s), spec decoding can provide
+The graph here from this https://developers.redhat.com/articles/2025/07/01/fly-eagle3-fly-faster-inference-vllm-speculative-decoding#speculative_decoding__a_solution_for_faster_llms[blog]
+highlights the tradeoffs of speculative decoding at low request rate vs bigger batch sizes.
+
+**Take away message**: As long as the number of requests is bound to use a non-intensive amount of GPU resources (lower req/s), speculative decoding can provide
 a nice speedup.
 
 NOTE: Speculative decoding in vLLM is not yet fully optimized and does not always yield intended inter-token latency reductions. In particular in this case it will fallback to V0 due to
 V1 still not supporting this particular speculation technique. Mind that what we're comparing here is not going to be exactly apples to apples, as the V0 and V1 engine have quite
 substantial architectural differences. 
 
-What to try: You'll need to specify a smaller draft model. A good starting point for Llama/granite might be a smaller Llama/granite variant or as in this 
+**What to try**: You'll need to specify a smaller draft model. A good starting point for Llama/Granite might be a smaller Llama/Granite variant or as in this 
 example a speculator trained specifically for our use-case. Let's redeploy with the following engine arguments:
 
 ////
@@ -597,7 +599,7 @@ VLLM_CMD="vllm serve $MODEL --max-num-seqs $MAX_NUM_SEQS --max-model-len 2048 --
 ```
 //// 
 
-. Update the workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml with the following values.
+. Update the _workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml_ with the following values.
 +
 [source,sh,role=execute]
 ----
@@ -647,8 +649,12 @@ helm install granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 -f works
 ----
 +
 vLLM will spin up an instance with the two models. 
-There's no free-lunch though, mind that the GPU memory will now be comprised of: the original `ibm-granite/granite-3.1-8b-instruct` weights + `ibm-granite/granite-3.0-8b-instruct-accelerator` proposer weights
+There's no free-lunch though, mind that the GPU memory will now be comprised of: the original `llama-3.1-8b-instruct` weights + `llama-3.1-8b-instruct-eagle3` proposer weights
  + a KV cache for *both* models.
+
++
+Shown below is an example mean TTFT vs request rate for speculative decoding with `ibm-granite/granite-3.1-8b-instruct weights` and `ibm-granite/granite-3.0-8b-instruct-accelerator`.
+
 +
 image::spec.png[specized]
 
@@ -689,8 +695,8 @@ Optimization is an iterative process. As you tune vLLM, continuously monitor key
 * GPU KV cache usage: At very high rates early on into a benchmark, it is an indicator of likely insufficient memory for KV cache.
 * Important engine arguments for customers that don't want to send data to the vLLM team
 ** https://docs.vllm.ai/en/stable/usage/usage_stats.html[^]
-** VLLM_NO_USAGE_STATS=1
-** DO_NOT_TRACK=1
+  - VLLM_NO_USAGE_STATS=1
+  - DO_NOT_TRACK=1
 
 ////
 [#configuration]

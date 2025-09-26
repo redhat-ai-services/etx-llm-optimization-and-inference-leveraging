@@ -3,9 +3,9 @@
 [#eval-performance]
 # Evaluating System Performance with GuideLLM
 
-In Generative AI systems, evaluating system performance including latency, throughput, and resource utilization is just as important as evaluating model accuracy or quality. Here's why:
+In Generative AI systems, evaluating system performance including latency, throughput and resource utilization is just as important as evaluating model accuracy or quality. Here's why:
 
-. **User Experience**: High latency leads to sluggish interactions, which is unacceptable in chatbots, copilots, and real-time applications. Users expect sub-second responses.
+. **User Experience**: High latency leads to sluggish interactions, which is unacceptable in chatbots, copilots and real-time applications. Users expect sub-second responses.
 
 . **Scalability**: Throughput determines how many requests a system can handle in parallel. For enterprise GenAI apps, high throughput is essential to serve multiple users or integrate with high-frequency backend processes.
 
@@ -17,22 +17,22 @@ In Generative AI systems, evaluating system performance including latency, throu
 
 ## What is GuideLLM?
 
-GuideLLM is a toolkit for evaluating and optimizing the deployment of LLMs. By simulating real-world inference workloads, GuideLLM enables you to easily assess the performance, resource requirements, and cost implications of deploying LLMs on various hardware configurations. This approach ensures efficient, scalable, and cost-effective LLM inference serving while maintaining high service quality.
+GuideLLM is a toolkit for evaluating and optimizing the deployment of LLMs. By simulating real-world inference workloads, GuideLLM enables you to easily assess the performance, resource requirements and cost implications of deploying LLMs on various hardware configurations. This approach ensures efficient, scalable and cost-effective LLM inference serving while maintaining high service quality.
 
 GuideLLM is now officially a part of the vLLM upstream project. This toolset is one of the primary ways Red Hat internal teams are benchmarking customer models. GuideLLM will be the main framework we will recommend to our customers with the scope of model performance and optimization. 
 
 ### Trusty AI vs GuideLLM
 
-Trusty AI maintains the scope of responsable AI, while GuideLLM is focused on benchmarking and model optimization. That being said, there are some current crossovers. Trusty AI incorporates lm-eval-harness and GuideLLM is roadmapped to include this test harness as well. Trusty AI will continue to be an incorporated and supported operator deployment in RHOAI. There are currently no plans to have a similar deployment method for GuideLLM. 
+Trusty AI maintains the scope of responsible AI, while GuideLLM is focused on benchmarking and model optimization. That being said, there are some current crossovers. Trusty AI incorporates `lm-eval-harness` and GuideLLM is roadmapped to include this test harness as well. Trusty AI will continue to be an incorporated and supported operator deployment in RHOAI. There are currently no plans to have a similar deployment method for GuideLLM. 
 
 ## Set Up GuideLLM tekton pipeline
 
 There are several current ways you may deploy and use GuideLLM.
 
-* CLI tool: documented in the upstream project.
-* Python library: Not yet in current upstream documentation. You can see an example here in this guide: https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/rhoai_deploy/guide_llm.html. 
-* Kubernetes job: https://github.com/rh-aiservices-bu/guidellm-pipeline 
-* Tekton pipeline: https://github.com/jhurlocker/guidellm-pipeline.git (forked from above repo) 
+* CLI tool: https://github.com/vllm-project/guidellm/blob/main/docs/guides/cli.md[documented] in the upstream project.
+* Python library: Not yet in current upstream documentation. You can see an example here in this https://redhatquickcourses.github.io/genai-vllm/genai-vllm/1/rhoai_deploy/guide_llm.html[guide]
+* Kubernetes job: You can see an example of this in this https://github.com/rh-aiservices-bu/guidellm-pipeline[repository]
+* Tekton pipeline: Refer to this https://github.com/jhurlocker/guidellm-pipeline.git[repository] which was forked from above repository.
 ** Run the below command to install the Tekton CLI
 +
 [source,console,role=execute,subs=attributes+]
@@ -41,17 +41,19 @@ curl -sL $(curl -s https://api.github.com/repos/tektoncd/cli/releases/latest | g
 tkn version
 ----
 
-For our lab today, we will utilize the tekton pipeline on our OpenShift AI cluster. A pipeline deployment provides the following benefits:
+NOTE: For Mac users (Darwin), update the above curl command to download the `*_Darwin_all.tar.gz` archive. 
+
+For our lab today, we will utilize the Tekton pipeline on our OpenShift AI cluster. A pipeline deployment provides the following benefits:
 
 * Automation and reproducibility
 * Cloud-native / kubernetes-native
-* Scalability and resource optimization: benchmarking can be resource intensive particularly when simulating high loads or testing large models. The dynamic provisioning/de-provisioning of necessary resources with tekton can handle this well which is particularly critical for the expensive compute
+* Scalability and resource optimization: benchmarking can be resource intensive, particularly when simulating high loads or testing large models. The dynamic provisioning/de-provisioning of necessary resources with Tekton can handle this well, which is particularly critical for the expensive compute
 * Modular
 * Integration with existing MLOps workflows
 * Version control / auditability
 * Better handling of complex, multi-stage workflows
 
-First, we'll clone the ETX vLLM optimization repo. Then we'll clone the benchmark pipeline repo, apply the PVC, task, and pipeline. We'll also create an s3 bucket in Minio where the pipeline will upload the benchmark results.
+First, we'll clone the ETX vLLM optimization repo. Then we'll clone the benchmark pipeline repo, apply the PVC, task and pipeline. We'll also create an s3 bucket in Minio where the pipeline will upload the benchmark results.
 
 . Clone the ETX vLLM optimization repo.
 +
@@ -84,7 +86,7 @@ Before running the pipeline, let's review the options for GuideLLM more closely.
 ## GuideLLM Arguments
 
 * Peruse the available GuideLLM https://github.com/neuralmagic/guidellm?tab=readme-ov-file#configurations[configuration options]. 
-* The GitHub ReadMe gives detailed information about configuration flags
+* The GitHub README gives detailed information about configuration flags
 
 ### Input/Output tokens
 For different use cases, you can set different standardized dataset profiles that can be passed in as arguments in GuideLLM. For example, the following variables represent input and output tokens, respectively, based on the given use case: 
@@ -94,7 +96,7 @@ For different use cases, you can set different standardized dataset profiles tha
 * **Summarization (1024/256)**
 * **Code Generation (512/512)**
 
-Using these profiles, we can map specific i/o token scenarios to real-world use cases to make these runs more explainable to how this impacts applications.
+Using these profiles, we can map specific I/O token scenarios to real-world use cases to make these runs more explainable in terms of how this impacts applications.
 
 ### --rate-type
 
@@ -136,30 +138,39 @@ Real workloads differ significantly from stock data:
 
 1. **Baseline**: Use stock data for initial estimates
 2. **Validation**: Test with client sample data
-3. **Production**: Use historical logs for final sizing
++
+To ensure that evaluation results reflect real-world workloads, it's important to request a representative client dataset. This helps validate baseline assumptions and capture unique workload characteristics such as traffic distribution, query complexity and domain-specific edge cases.
 
-**Client Data Collection**:
-```json
-{
-  "type": "file",
-  "path": "/path/to/client_sample.jsonl",
-  "sample_size": 1000
-}
-```
+- Format: Provide data in JSONL or CSV format or any of the https://github.com/vllm-project/guidellm/blob/main/docs/datasets.md[supported formats].
+
+- Sample Size: At least 1,000 representative records are recommended, though larger samples improve accuracy.
+
+- Scope: Include both common queries (80% of volume) and atypical/edge cases (20%).
+
+- Security: Client should remove or anonymize any sensitive information before sharing.
+
+3. **Production**: Use historical logs for final sizing
 
 ### Technical Consulting Guidelines
 
 **During Discovery**:
+
 - Request sample queries (80% typical usage)
+
 - Identify peak patterns and edge cases
 
 **During PoC**:
+
 - Start with stock data for baseline
+
 - Compare with client data to quantify differences
+
 - Plan 20-30% performance buffer
 
 **Stock Data Limitations**:
+
 - **Tests well**: Infrastructure capacity, relative comparisons, scaling
+
 - **Misses**: Real workload complexity, traffic variations, domain-specific patterns
 
 **Key Takeaway**: Stock data for learning; client data for production recommendations.
@@ -177,7 +188,7 @@ NOTE: Make sure your granite-8b model is deployed on OpenShift AI. If you need t
 `helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
   --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm`
 
-Run the pipeline with necessary parameters in a terminal. Accept the defaults when prompted. If you chose a different model adjust the *target* parameter. 
+Run the pipeline with necessary parameters in a terminal. Accept the defaults when prompted. If you chose a different model, adjust the *target* parameter. 
 
 [source,console,role=execute,subs=attributes+]
 ----
@@ -248,15 +259,21 @@ See the complete https://github.com/neuralmagic/guidellm/blob/main/docs/metrics.
 #### Bottom Section (Benchmark Stats)
 
 * Mean
+
 - Overall average
+
 - Good for general performance overview
 
 * Median
+
 - Typical experience
+
 - More stable, less skewed by outliers
 
 * P99
+
 - Worst-case real latency
+
 - Essential for SLOs and user experience under load
 
 ### Adjusting GuideLLM Settings
@@ -406,8 +423,11 @@ tkn pipeline start guidellm-benchmark-pipeline -n vllm \
 ----
 
 **Technical Consulting Value**:
+
 - Models real-world traffic patterns with natural variability
+
 - Reveals queue management and batching effectiveness
+
 - Supports autoscaling configuration and resource allocation
 
 ### Exercise 3: Comparative Analysis Framework
@@ -422,9 +442,13 @@ Execute all three token configurations sequentially and compare:
 3. **Heavy** (RAG): 4096/512 tokens
 
 **Analysis Points for Technical Consulting**:
+
 - **Memory Usage Scaling**: How does KV cache grow with context length?
+
 - **Latency Patterns**: Linear vs exponential increases with token count
+
 - **Throughput Impact**: Requests/second degradation with larger contexts
+
 - **Cost Implications**: GPU hours required for different workload types
 
 #### Rate Type Performance Matrix
@@ -436,9 +460,13 @@ Test each rate type with consistent token configuration to isolate performance c
 4. **Sweep**: Comprehensive performance curve
 
 **Technical Consulting Applications**:
+
 - **Infrastructure Sizing**: Use throughput results for hardware recommendations
+
 - **SLA Development**: Leverage latency percentiles for performance guarantees  
+
 - **Cost Modeling**: Apply sustained load results to pricing calculations
+
 - **Scaling Strategy**: Use sweep results to plan horizontal scaling triggers
 
 ## Enhanced Metrics Interpretation
@@ -447,30 +475,45 @@ Test each rate type with consistent token configuration to isolate performance c
 
 #### Time to First Token (TTFT)
 **Business Impact**: Direct correlation to user experience and perceived responsiveness
+
 - **Target**: <200ms for interactive applications
+
 - **Acceptable**: 200-500ms for productivity tools
+
 - **Problematic**: >500ms indicates infrastructure or model optimization issues
 
 **Technical Consulting Guidance**:
+
 - High TTFT often indicates memory bandwidth limitations
+
 - Consistent across rate types suggests model-level bottlenecks
+
 - Variable TTFT indicates queueing or resource contention
 
 #### Inter-Token Latency (ITL)
 **Business Impact**: Affects streaming response quality and user engagement
+
 - **Target**: <50ms for smooth streaming experience
+
 - **Monitoring**: P99 values reveal worst-case user experience
+
 - **Optimization**: Focus on batching efficiency and memory management
 
 #### Request Latency Distribution Analysis
 **For Technical Consulting**:
+
 - **Mean**: General performance overview, useful for capacity planning
+
 - **Median**: Typical user experience, critical for SLA commitments
+
 - **P99**: Tail latency, essential for user satisfaction and system reliability
 
 **Red Flags**:
+
 - Large gap between median and P99 indicates inconsistent performance
+
 - Degrading P99 under load suggests approaching capacity limits
+
 - High variability points to resource contention or inefficient scheduling
 
 ### Business Alignment Framework
@@ -484,15 +527,21 @@ Cost per Request = (GPU Hours x Hourly Rate) / Total Requests Processed
 ```
 
 **Quality-of-Service Tiers**:
+
 - **Premium**: P99 < 500ms, High throughput, Premium pricing
+
 - **Standard**: P99 < 1000ms, Medium throughput, Standard pricing  
+
 - **Economy**: P99 < 2000ms, Lower throughput, Budget pricing
 
 #### Capacity Planning Recommendations
 
 **Based on Sweep Results**:
+
 1. **Peak Efficiency Point**: Identify request rate with optimal cost/performance ratio
+
 2. **Linear Scaling Range**: Determine where performance degrades linearly vs exponentially
+
 3. **Breaking Point**: Establish maximum sustainable load before quality degradation
 
 **Infrastructure Sizing Formula**:

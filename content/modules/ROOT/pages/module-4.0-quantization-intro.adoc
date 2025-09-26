@@ -60,7 +60,7 @@ Build automated, repeatable quantization workflows using OpenShift AI, evaluate 
 
 Before starting this module, ensure you have:
 
-* Completed Modules 1-3 (Deployment, Evaluation, Optimization)
+* Completed Modules 2-3 (Evaluation, Optimization)
 * Understanding of vLLM serving and performance concepts
 * Access to OpenShift AI environment with GPU resources  
 * Familiarity with model evaluation and benchmarking from previous modules

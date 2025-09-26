@@ -1,6 +1,6 @@
 :imagesdir: ../assets/images
 [#eval-accuracy]
-# Evaluating Model Accuracy with Trusty AI lm-eval-harness service
+# Evaluating Model Accuracy with TrustyAI lm-eval-harness service
 
 While performance metrics like latency and throughput are critical for deploying efficient GenAI systems, **task-level accuracy and reasoning quality** are equally essential for selecting or fine-tuning a model. In this activity, we use the popular lm-eval-harness framework to evaluate how well a language model performs across established benchmarks, focusing on reasoning and subject matter understanding.
 
@@ -20,11 +20,11 @@ https://trustyai.org/docs/main/main[TrustyAI^] is an open-source AI explainabili
 
 The framework supports both open-source models and OpenAI-compatible endpoints, and can be customized with additional tasks, prompt templates, and evaluation metrics.
 
-## MMLU-Pro
+## ARC (Abstract and Reasoning Corpus)
 
-Today we will be running the mmlu_pro evaluation. 
+Today we will be running the ARC evaluation. 
 
-**MMLU-Pro** is a reasoning-focused, multiple-choice benchmark derived from the original https://huggingface.co/datasets/cais/mmlu[MMLU dataset^]. MMLU-Pro extends the original MMLU benchmark by introducing 10-option multiple-choice questions across diverse academic disciplines. It's designed to test a model's **reasoning, factual recall, and elimination skills**—key for enterprise AI.
+**ARC** (AI2 Reasoning Challenge) is a multiple-choice question answering dataset designed to evaluate advanced reasoning and knowledge application in AI systems. It contains science exam questions from grades 3 to 9, split into two subsets: ARC-Easy, with questions that can often be solved by retrieval or surface-level cues, and ARC-Challenge, which includes more difficult questions requiring reasoning, commonsense understanding, and integration of world knowledge. ARC serves as a benchmark for testing a model’s ability to move beyond factual lookup toward genuine scientific reasoning.
 
 ## Today's Activity
 
@@ -36,15 +36,12 @@ In this section of our lab we will:
 
 ### Setup Trusty AI
 
-. Fist, we'll change the trustyai managementState from "Removed" to "Managed" in the default DataScienceCluster.
+. First, we'll change the `trustyai` managementState from "Removed" to "Managed" in the `default` DataScienceCluster.
 +
 [source,console,role=execute,subs=attributes+]
 ----
 oc patch datasciencecluster default-dsc -p '{"spec":{"components":{"trustyai":{"managementState":"Managed"}}}}' --type=merge
 ----
-+
-https://github.com/trustyai-explainability/llama-stack-provider-lmeval/blob/main/demos/00-getting_started_with_lmeval.ipynb
-https://trustyai.org/docs/main/lm-eval-tutorial#_examples
 
 . Configure TrustyAI to allow downloading remote datasets from Huggingface
 +
@@ -56,13 +53,7 @@ A typical evaluation job will download two items from Huggingface:
 
 +
 If you trust the source of your dataset and tokenizer, you can override TrustyAI's default setting.
-In our case, we'll be downloading:
-
-- [allenai/ai2_arc](https://huggingface.co/datasets/allenai/ai2_arc) +
-- [Phi-3-mini-4k-instruct's tokenizer](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
-
-+
-To download those two resources, run:
+In our case, we'll be downloading https://huggingface.co/datasets/allenai/ai2_arc[allenai/ai2_arc] and https://huggingface.co/microsoft/Phi-3-mini-4k-instruct[Phi-3-mini-4k-instruct's tokenizer]. To download those two resources, run:
 
 +
 [source,console,role=execute,subs=attributes+]
@@ -85,7 +76,7 @@ Add the external endpoint to the *workshop_code/evals/trusty/arc_easy.yaml* file
 [source,console,role=execute,subs=attributes+]
 ----
 - name: base_url
-      value: https://<YOUR_EXTERNAL_INFERENCE_ENDPOINT>/v1/completions # the location of your model's /chat/completions or /completions endpoint
+      value: https://<YOUR_EXTERNAL_INFERENCE_ENDPOINT>/v1/completions # the location of your model's completions endpoint
 ----
 
 ### Create and run the lm-eval job
@@ -111,7 +102,7 @@ watch oc logs -f arc-easy-eval-job -n vllm
 +
 You will see progression in percentage points.
 +
-or alternatively the logs of the model pod:
+Or alternatively, view the logs of the model pod:
 +
 [source,console,role=execute,subs=attributes+]
 ----
@@ -130,19 +121,25 @@ This evaluation run will take approximately 10 minutes.
 
 ### Interpret and understand results
 
-. Interpreting MMLU-Pro Results
+. Interpreting ARC Results
+Metric: Performance is measured by multiple-choice accuracy (correct answers out of 4 options).
 +
-**Accuracy**: The primary metric is multiple-choice accuracy, indicating how often the model selects the correct answer from 10 options.
+**Baseline**: ~25% corresponds to random guessing.
 +
-~10% = random guessing baseline
+**Performance ranges**: 
 +
-~30-50% = typical for smaller or untuned models
+- **50–60%**: typical for smaller or older models.
 +
-~60-70%+ = high reasoning capability or fine-tuned performance
+- **ARC-Easy**: many modern models exceed 70–80%.
 +
-**Per-subject Scores**: Breakdowns by subject (e.g., philosophy, law, computer science) help identify a model's strengths and weaknesses in specific domains.
+- **ARC-Challenge**: 70–80% indicates strong reasoning; 80%+ is near state-of-the-art.
+
+
 +
-**Implications**: Higher MMLU-Pro accuracy generally correlates with better real-world task generalization, especially for tasks involving structured inputs, knowledge retrieval, and logic.
+**Split differences**: ARC-Easy emphasizes simpler retrieval-based questions, while ARC-Challenge demands multi-step reasoning and integration of world knowledge.
+
++
+**Implications**: Higher ARC accuracy reflects stronger scientific reasoning, knowledge application, and logical problem-solving capabilities.
 
 . Check out the results
 +
@@ -179,13 +176,13 @@ returns:
 *acc_norm_stderr,none*: This is the standard error for the normalized accuracy, indicating the margin of error for that specific score.
 +
 Now you're free to play around with evaluations! You can see the full list of evaluation supported by 
-lm-evaluation-harness https://github.com/red-hat-data-services/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md[here^]
+lm-evaluation-harness https://github.com/red-hat-data-services/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md[here^].
 +
-*More information*
-+
-[TrustyAI Notes Repo](https://github.com/trustyai-explainability/reference/tree/main)
-+
-[TrustyAI Github](https://github.com/trustyai-explainability)
+*TrustyAI additional references*
+
+- https://github.com/trustyai-explainability/reference/tree/main[TrustyAI Notes Repo]
+
+- https://github.com/trustyai-explainability[TrustyAI GitHub]
 
 . Try MMLU industry-focused test
 +
@@ -205,6 +202,28 @@ This will only take a minute or so to process.
 oc get LMEvalJob mmlu-jurisprudence-eval-job -n vllm -o template --template '{{.status.results}}' | jq  .results
 ----
 
+### Bonus Exercise: MMLU-Pro Evaluation
+
+If you have additional time, try running the more challenging MMLU-Pro evaluation.
+
+**MMLU-Pro** is a reasoning-focused, multiple-choice benchmark derived from the original https://huggingface.co/datasets/cais/mmlu[MMLU dataset^]. MMLU-Pro extends the original MMLU benchmark by introducing 10-option multiple-choice questions across diverse academic disciplines. It's designed to test a model's **reasoning, factual recall, and elimination skills** with increased difficulty.
+
+**Key differences from standard MMLU:**
+
+- 10-option multiple choice (vs. 4-option in standard MMLU)
+- More challenging questions requiring deeper reasoning
+- Covers advanced topics across academic disciplines
+
+To run MMLU-Pro evaluation, you would need to create a custom LMEvalJob configuration file similar to the ARC and jurisprudence examples, but specifying the MMLU-Pro task.
+
+**Expected Performance Ranges for MMLU-Pro:**
+
+- ~10% = random guessing baseline (10-option multiple choice)  
+- ~30-50% = typical for smaller or untuned models
+- ~60-70%+ = high reasoning capability indicating strong performance
+
+NOTE: MMLU-Pro evaluations typically take longer due to the increased difficulty and dataset size.
+
 // TODO:### Testing your model with a custom dataset 
 
 // TODO:### Testing your model in a disconnected environment
@@ -213,19 +232,20 @@ oc get LMEvalJob mmlu-jurisprudence-eval-job -n vllm -o template --template '{{.
 
 What We Did:
 
-* Set up TrustyAI operator - Enabled model evaluation framework in OpenShift AI
-* Configured internet access - Allowed downloading of evaluation datasets from HuggingFace
-* Connected to deployed model - Linked evaluation job to the Granite 8B inference service
-* Ran ARC Easy benchmark - Tested model's reasoning on grade-school science questions
-* Analyzed results - Achieved 81.8% accuracy, indicating strong reasoning performance
+* Set up TrustyAI operator - enabled model evaluation framework in OpenShift AI
+* Configured internet access - allowed downloading of evaluation datasets from Hugging Face
+* Connected to deployed model - linked evaluation job to the Granite 8B inference service
+* Ran ARC Easy benchmark - tested model's reasoning on grade-school science questions
+* Analyzed results - achieved 81.8% accuracy, indicating strong reasoning performance
 
 Key Outcome:
 
-* ✅ Successfully evaluated deployed AI model accuracy using industry-standard benchmarks through TrustyAI + lm-eval-harness
+* Successfully evaluated deployed AI model accuracy using industry-standard benchmarks through TrustyAI + lm-eval-harness
 
 Tools Used:
 
 * TrustyAI: Enterprise evaluation operator
 * lm-eval-harness: Standard benchmarking framework
 * ARC Easy: Science reasoning benchmark
-* Bottom Line: Demonstrated how to measure and validate AI model accuracy in production using automated evaluation pipelines.
+
+**Bottom Line**: Demonstrated how to measure and validate AI model accuracy in production using automated evaluation pipelines.
