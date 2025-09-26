@@ -433,7 +433,7 @@ curl -X POST "https://<ROUTE>/apis/v2beta1/runs" \
         "model_s3_path": "ibm-granite/granite-3.3-2b-instruct",
         "output_path": "granite-int4-pipeline",
         "quantization_type": "int4",
-        "use_s3_download": true
+        "use_s3_download": false
       }
     },
     "display_name": "quantization-run-001"
