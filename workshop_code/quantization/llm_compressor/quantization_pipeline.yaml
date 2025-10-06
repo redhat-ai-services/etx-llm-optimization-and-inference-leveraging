@@ -3,9 +3,140 @@
 # Description: A pipeline for quantizing a model
 # Inputs:
 #    model_id: str [Default: 'ibm-granite/granite-3.3-2b-instruct']
+#    model_s3_path: str [Default: 'ibm-granite/granite-3.3-2b-instruct']
 #    output_path: str [Default: 'granite-int4-pipeline']
 #    quantization_type: str [Default: 'int4']
+#    use_s3_download: bool [Default: False]
 components:
+  comp-condition-2:
+    dag:
+      tasks:
+        download-model-from-s3:
+          cachingOptions: {}
+          componentRef:
+            name: comp-download-model-from-s3
+          inputs:
+            parameters:
+              model_s3_path:
+                componentInputParameter: pipelinechannel--model_s3_path
+              output_path:
+                runtimeValue:
+                  constant: /models/base-model
+          taskInfo:
+            name: download-model-from-s3
+        quantize-model:
+          cachingOptions: {}
+          componentRef:
+            name: comp-quantize-model
+          dependentTasks:
+          - download-model-from-s3
+          inputs:
+            parameters:
+              model_path:
+                runtimeValue:
+                  constant: /models/base-model
+              output_path:
+                runtimeValue:
+                  constant: /models/optimized-model
+              quantization_type:
+                componentInputParameter: pipelinechannel--quantization_type
+          taskInfo:
+            name: quantize-model
+    inputDefinitions:
+      parameters:
+        pipelinechannel--model_s3_path:
+          parameterType: STRING
+        pipelinechannel--quantization_type:
+          parameterType: STRING
+        pipelinechannel--use_s3_download:
+          parameterType: BOOLEAN
+  comp-condition-3:
+    dag:
+      tasks:
+        download-model-from-hf:
+          cachingOptions: {}
+          componentRef:
+            name: comp-download-model-from-hf
+          inputs:
+            parameters:
+              model_id:
+                componentInputParameter: pipelinechannel--model_id
+              output_path:
+                runtimeValue:
+                  constant: /models/base-model
+          taskInfo:
+            name: download-model-from-hf
+        quantize-model-2:
+          cachingOptions: {}
+          componentRef:
+            name: comp-quantize-model-2
+          dependentTasks:
+          - download-model-from-hf
+          inputs:
+            parameters:
+              model_path:
+                runtimeValue:
+                  constant: /models/base-model
+              output_path:
+                runtimeValue:
+                  constant: /models/optimized-model
+              quantization_type:
+                componentInputParameter: pipelinechannel--quantization_type
+          taskInfo:
+            name: quantize-model-2
+    inputDefinitions:
+      parameters:
+        pipelinechannel--model_id:
+          parameterType: STRING
+        pipelinechannel--quantization_type:
+          parameterType: STRING
+        pipelinechannel--use_s3_download:
+          parameterType: BOOLEAN
+  comp-condition-branches-1:
+    dag:
+      tasks:
+        condition-2:
+          componentRef:
+            name: comp-condition-2
+          inputs:
+            parameters:
+              pipelinechannel--model_s3_path:
+                componentInputParameter: pipelinechannel--model_s3_path
+              pipelinechannel--quantization_type:
+                componentInputParameter: pipelinechannel--quantization_type
+              pipelinechannel--use_s3_download:
+                componentInputParameter: pipelinechannel--use_s3_download
+          taskInfo:
+            name: condition-2
+          triggerPolicy:
+            condition: inputs.parameter_values['pipelinechannel--use_s3_download']
+              == true
+        condition-3:
+          componentRef:
+            name: comp-condition-3
+          inputs:
+            parameters:
+              pipelinechannel--model_id:
+                componentInputParameter: pipelinechannel--model_id
+              pipelinechannel--quantization_type:
+                componentInputParameter: pipelinechannel--quantization_type
+              pipelinechannel--use_s3_download:
+                componentInputParameter: pipelinechannel--use_s3_download
+          taskInfo:
+            name: condition-3
+          triggerPolicy:
+            condition: '!(inputs.parameter_values[''pipelinechannel--use_s3_download'']
+              == true)'
+    inputDefinitions:
+      parameters:
+        pipelinechannel--model_id:
+          parameterType: STRING
+        pipelinechannel--model_s3_path:
+          parameterType: STRING
+        pipelinechannel--quantization_type:
+          parameterType: STRING
+        pipelinechannel--use_s3_download:
+          parameterType: BOOLEAN
   comp-createpvc:
     executorLabel: exec-createpvc
     inputDefinitions:
@@ -75,11 +206,19 @@ components:
           description: Name of the PVC to delete. Supports passing a runtime-generated
             name, such as a name provided by ``kubernetes.CreatePvcOp().outputs['name']``.
           parameterType: STRING
-  comp-download-model:
-    executorLabel: exec-download-model
+  comp-download-model-from-hf:
+    executorLabel: exec-download-model-from-hf
     inputDefinitions:
       parameters:
         model_id:
+          parameterType: STRING
+        output_path:
+          parameterType: STRING
+  comp-download-model-from-s3:
+    executorLabel: exec-download-model-from-s3
+    inputDefinitions:
+      parameters:
+        model_s3_path:
           parameterType: STRING
         output_path:
           parameterType: STRING
@@ -91,6 +230,16 @@ components:
           parameterType: STRING
   comp-quantize-model:
     executorLabel: exec-quantize-model
+    inputDefinitions:
+      parameters:
+        model_path:
+          parameterType: STRING
+        output_path:
+          parameterType: STRING
+        quantization_type:
+          parameterType: STRING
+  comp-quantize-model-2:
+    executorLabel: exec-quantize-model-2
     inputDefinitions:
       parameters:
         model_path:
@@ -115,13 +264,13 @@ deploymentSpec:
     exec-deletepvc:
       container:
         image: argostub/deletepvc
-    exec-download-model:
+    exec-download-model-from-hf:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - download_model
+        - download_model_from_hf
         command:
         - sh
         - -c
@@ -142,10 +291,95 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef download_model(\n    model_id: str,\n    output_path: str,\n\
-          ):\n    from huggingface_hub import snapshot_download\n\n    snapshot_download(repo_id=model_id,\
+          \ *\n\ndef download_model_from_hf(\n    model_id: str,\n    output_path:\
+          \ str,\n):\n    from huggingface_hub import snapshot_download\n    import\
+          \ os\n\n    print(f'Starting model download from HF: {model_id}')\n    print(f'Target\
+          \ output path: {output_path}')\n\n    # Ensure output directory exists\n\
+          \    os.makedirs(output_path, exist_ok=True)\n\n    snapshot_download(repo_id=model_id,\
           \ local_dir=output_path)\n    print(\"Model downloaded successfully from\
-          \ HF.\")\n\n"
+          \ HF.\")\n\n    config_path = os.path.join(output_path, 'config.json')\n\
+          \    if os.path.exists(config_path):\n        print(f\"Verified: config.json\
+          \ found at {config_path}\")\n    else:\n        print(f\"Warning: config.json\
+          \ not found at {config_path}\")\n\n    if os.path.exists(output_path):\n\
+          \        print(\"Downloaded files:\")\n        for root, dirs, files in\
+          \ os.walk(output_path):\n            for file in files:\n              \
+          \  full_path = os.path.join(root, file)\n                relative_path =\
+          \ os.path.relpath(full_path, output_path)\n                print(f\"  {relative_path}\"\
+          )\n\n"
+        image: registry.access.redhat.com/ubi9/python-312
+        resources:
+          accelerator:
+            count: '1'
+            type: nvidia.com/gpu
+    exec-download-model-from-s3:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - download_model_from_s3
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.9.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'boto3' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef download_model_from_s3(\n    model_s3_path: str,\n    output_path:\
+          \ str,\n):\n    import os\n    from boto3 import client\n\n    print('Starting\
+          \ model download from S3.')\n    s3_endpoint_url = os.environ[\"s3_host\"\
+          ]\n    s3_access_key = os.environ[\"s3_access_key\"]\n    s3_secret_key\
+          \ = os.environ[\"s3_secret_access_key\"]\n    s3_bucket_name = os.environ[\"\
+          s3_bucket\"]\n\n    print(f'Downloading model from bucket {s3_bucket_name}\
+          \ '\n          f'path {model_s3_path} from S3 storage at {s3_endpoint_url}')\n\
+          \    print(f'Target output path: {output_path}')\n\n    s3_client = client(\n\
+          \        's3', endpoint_url=s3_endpoint_url, aws_access_key_id=s3_access_key,\n\
+          \        aws_secret_access_key=s3_secret_key, verify=False\n    )\n\n  \
+          \  os.makedirs(output_path, exist_ok=True)\n\n    print(f'Listing objects\
+          \ with prefix: {model_s3_path}')\n    paginator = s3_client.get_paginator('list_objects_v2')\n\
+          \    pages = paginator.paginate(Bucket=s3_bucket_name, Prefix=model_s3_path)\n\
+          \n    downloaded_files = []\n    total_objects = 0\n\n    for page in pages:\n\
+          \        if 'Contents' in page:\n            for obj in page['Contents']:\n\
+          \                total_objects += 1\n                s3_key = obj['Key']\n\
+          \                print(f'Found S3 object: {s3_key}')\n\n               \
+          \ # let's just skip if it's just a directory marker\n                if\
+          \ s3_key.endswith('/'):\n                    print(f'Skipping directory\
+          \ marker: {s3_key}')\n                    continue\n\n                relative_path\
+          \ = s3_key[len(model_s3_path):].lstrip('/')\n                local_file_path\
+          \ = os.path.join(output_path, relative_path)\n\n                print(f'S3\
+          \ key: {s3_key}')\n                print(f'Relative path: {relative_path}')\n\
+          \                print(f'Local file path: {local_file_path}')\n\n      \
+          \          local_dir = os.path.dirname(local_file_path)\n              \
+          \  if local_dir:\n                    os.makedirs(local_dir, exist_ok=True)\n\
+          \                    print(f'Created directory: {local_dir}')\n\n      \
+          \          try:\n                    s3_client.download_file(s3_bucket_name,\
+          \ s3_key, local_file_path)\n                    downloaded_files.append(local_file_path)\n\
+          \                    print(f'Successfully downloaded {s3_key} to {local_file_path}')\n\
+          \                except Exception as e:\n                    print(f'Error\
+          \ downloading {s3_key}: {e}')\n                    raise\n\n    print(f'Total\
+          \ objects found: {total_objects}')\n    print(f'Files downloaded: {len(downloaded_files)}')\n\
+          \n    essential_files = ['config.json']\n    model_files = ['model.safetensors',\
+          \ 'pytorch_model.bin', 'model.bin']\n    tokenizer_files = ['tokenizer.json',\
+          \ 'tokenizer_config.json']\n\n    print(f'Verifying model files in {output_path}')\n\
+          \n    if os.path.exists(output_path):\n        for root, dirs, files in\
+          \ os.walk(output_path):\n            for file in files:\n              \
+          \  full_path = os.path.join(root, file)\n                relative_to_output\
+          \ = os.path.relpath(full_path, output_path)\n                print(f'Local\
+          \ file found: {relative_to_output}')\n\n    print('Finished downloading\
+          \ model from S3.')\n\n"
         image: registry.access.redhat.com/ubi9/python-312
         resources:
           accelerator:
@@ -230,14 +464,20 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef quantize_model(\n    model_path: str,\n    output_path: str,\n\
           \    quantization_type: str,\n):\n    from transformers import AutoTokenizer,\
-          \ AutoModelForCausalLM\n\n    # 1) Load model and tokenizer\n    model =\
-          \ AutoModelForCausalLM.from_pretrained(\n        model_path, device_map=\"\
-          auto\", torch_dtype=\"auto\",\n    )\n    tokenizer = AutoTokenizer.from_pretrained(model_path)\n\
-          \n    # 2) Data calibration\n    from datasets import load_dataset\n\n \
-          \   # Exercise left for the attendance:\n    # This is harcoded but it could\
-          \ be parametrized in the pipeline\n    NUM_CALIBRATION_SAMPLES = 256  #\
-          \ 1024\n    DATASET_ID = \"neuralmagic/LLM_compression_calibration\"\n \
-          \   DATASET_SPLIT = \"train\"\n\n    # Load dataset.\n    ds = load_dataset(DATASET_ID,\
+          \ AutoModelForCausalLM\n    import os\n\n    print(f'Loading model from\
+          \ path: {model_path}')\n\n    # Verify the model path exists and has required\
+          \ files\n    if not os.path.exists(model_path):\n        raise FileNotFoundError(f\"\
+          Model path does not exist: {model_path}\")\n\n    config_path = os.path.join(model_path,\
+          \ 'config.json')\n    if not os.path.exists(config_path):\n        raise\
+          \ FileNotFoundError(f\"config.json not found at: {config_path}\")\n\n  \
+          \  print(f'Model path verified: {model_path}')\n\n    # 1) Load model and\
+          \ tokenizer\n    model = AutoModelForCausalLM.from_pretrained(\n       \
+          \ model_path, device_map=\"auto\", torch_dtype=\"auto\",\n    )\n    tokenizer\
+          \ = AutoTokenizer.from_pretrained(model_path)\n\n    # 2) Data calibration\n\
+          \    from datasets import load_dataset\n\n    # Exercise left for the attendees:\n\
+          \    # This is harcoded but it could be parametrized in the pipeline\n \
+          \   NUM_CALIBRATION_SAMPLES = 256  # 1024\n    DATASET_ID = \"neuralmagic/LLM_compression_calibration\"\
+          \n    DATASET_SPLIT = \"train\"\n\n    # Load dataset.\n    ds = load_dataset(DATASET_ID,\
           \ split=DATASET_SPLIT)\n    ds = ds.shuffle(seed=42).select(range(NUM_CALIBRATION_SAMPLES))\n\
           \n    # Preprocess the data into the format the model is trained with.\n\
           \    def preprocess(example):\n        return {\"text\": example[\"text\"\
@@ -245,16 +485,98 @@ deploymentSpec:
           \        return tokenizer(\n            sample[\"text\"],\n            padding=False,\n\
           \            truncation=False,\n            add_special_tokens=True,\n \
           \       )\n    ds = ds.map(tokenize, remove_columns=ds.column_names)\n\n\
-          \    # 3) Quantize model\n    from llmcompressor.modifiers.quantization\
-          \ import GPTQModifier\n    from llmcompressor.transformers import oneshot\n\
-          \    from llmcompressor.modifiers.smoothquant import SmoothQuantModifier\n\
-          \n    # Exercise left for the attendance:\n    # This is harcoded but it\
-          \ could be parametrized in the pipeline\n    DAMPENING_FRAC = 0.1  # 0.01\n\
-          \    OBSERVER = \"mse\"  # minmax\n    GROUP_SIZE = 128  # 64\n    # Configure\
+          \    # Quantize model\n    from llmcompressor.modifiers.quantization import\
+          \ GPTQModifier\n    from llmcompressor.transformers import oneshot\n   \
+          \ from llmcompressor.modifiers.smoothquant import SmoothQuantModifier\n\n\
+          \    # Exercise left for the attendees:\n    # This is harcoded but it could\
+          \ be parametrized in the pipeline\n    DAMPENING_FRAC = 0.1  # 0.01\n  \
+          \  OBSERVER = \"mse\"  # minmax\n    GROUP_SIZE = 128  # 64\n    # Configure\
           \ the quantization algorithm to run.\n    ignore=[\"lm_head\"]\n    mappings=[\n\
           \        [[\"re:.*q_proj\", \"re:.*k_proj\", \"re:.*v_proj\"], \"re:.*input_layernorm\"\
           ],\n        [[\"re:.*gate_proj\", \"re:.*up_proj\"], \"re:.*post_attention_layernorm\"\
-          ],\n        [[\"re:.*down_proj\"], \"re:.*up_proj\"]\n    ]\n    if quantization_type\
+          ],\n        [[\"re:.*down_proj\"], \"re:.*up_proj\"]\n    ]\n\n    # Exercise\
+          \ left for the attendees:\n    # Add support for fp8 type\n    if quantization_type\
+          \ == \"int8\":\n        recipe = [\n            SmoothQuantModifier(smoothing_strength=0.7,\
+          \ ignore=ignore, mappings=mappings),\n            GPTQModifier(\n      \
+          \          targets=[\"Linear\"],\n                ignore=ignore,\n     \
+          \           scheme=\"W8A8\",\n                dampening_frac=DAMPENING_FRAC,\n\
+          \                observer=OBSERVER,\n            )\n        ]\n    elif\
+          \ quantization_type == \"int4\":\n        recipe = [\n            GPTQModifier(\n\
+          \                targets=[\"Linear\"],\n                ignore=ignore,\n\
+          \                scheme=\"w4a16\",\n                dampening_frac=DAMPENING_FRAC,\n\
+          \                observer=OBSERVER,\n                group_size=GROUP_SIZE\n\
+          \            )\n        ]\n    else:\n        raise ValueError(f\"Quantization\
+          \ type {quantization_type} not supported\")\n\n    oneshot(\n        model=model,\n\
+          \        dataset=ds,\n        recipe=recipe,\n        num_calibration_samples=NUM_CALIBRATION_SAMPLES,\n\
+          \        max_seq_length=8196,\n    )\n\n    # Save to disk compressed.\n\
+          \    model.save_pretrained(output_path, save_compressed=True)\n    tokenizer.save_pretrained(output_path)\n\
+          \n"
+        image: registry.access.redhat.com/ubi9/python-312
+        resources:
+          accelerator:
+            count: '1'
+            type: nvidia.com/gpu
+    exec-quantize-model-2:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - quantize_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.9.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'llmcompressor==0.6.0'\
+          \ 'transformers==4.52.2' 'accelerate' 'vllm' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef quantize_model(\n    model_path: str,\n    output_path: str,\n\
+          \    quantization_type: str,\n):\n    from transformers import AutoTokenizer,\
+          \ AutoModelForCausalLM\n    import os\n\n    print(f'Loading model from\
+          \ path: {model_path}')\n\n    # Verify the model path exists and has required\
+          \ files\n    if not os.path.exists(model_path):\n        raise FileNotFoundError(f\"\
+          Model path does not exist: {model_path}\")\n\n    config_path = os.path.join(model_path,\
+          \ 'config.json')\n    if not os.path.exists(config_path):\n        raise\
+          \ FileNotFoundError(f\"config.json not found at: {config_path}\")\n\n  \
+          \  print(f'Model path verified: {model_path}')\n\n    # 1) Load model and\
+          \ tokenizer\n    model = AutoModelForCausalLM.from_pretrained(\n       \
+          \ model_path, device_map=\"auto\", torch_dtype=\"auto\",\n    )\n    tokenizer\
+          \ = AutoTokenizer.from_pretrained(model_path)\n\n    # 2) Data calibration\n\
+          \    from datasets import load_dataset\n\n    # Exercise left for the attendees:\n\
+          \    # This is harcoded but it could be parametrized in the pipeline\n \
+          \   NUM_CALIBRATION_SAMPLES = 256  # 1024\n    DATASET_ID = \"neuralmagic/LLM_compression_calibration\"\
+          \n    DATASET_SPLIT = \"train\"\n\n    # Load dataset.\n    ds = load_dataset(DATASET_ID,\
+          \ split=DATASET_SPLIT)\n    ds = ds.shuffle(seed=42).select(range(NUM_CALIBRATION_SAMPLES))\n\
+          \n    # Preprocess the data into the format the model is trained with.\n\
+          \    def preprocess(example):\n        return {\"text\": example[\"text\"\
+          ]}\n    ds = ds.map(preprocess)\n\n    # Tokenize the data\n    def tokenize(sample):\n\
+          \        return tokenizer(\n            sample[\"text\"],\n            padding=False,\n\
+          \            truncation=False,\n            add_special_tokens=True,\n \
+          \       )\n    ds = ds.map(tokenize, remove_columns=ds.column_names)\n\n\
+          \    # Quantize model\n    from llmcompressor.modifiers.quantization import\
+          \ GPTQModifier\n    from llmcompressor.transformers import oneshot\n   \
+          \ from llmcompressor.modifiers.smoothquant import SmoothQuantModifier\n\n\
+          \    # Exercise left for the attendees:\n    # This is harcoded but it could\
+          \ be parametrized in the pipeline\n    DAMPENING_FRAC = 0.1  # 0.01\n  \
+          \  OBSERVER = \"mse\"  # minmax\n    GROUP_SIZE = 128  # 64\n    # Configure\
+          \ the quantization algorithm to run.\n    ignore=[\"lm_head\"]\n    mappings=[\n\
+          \        [[\"re:.*q_proj\", \"re:.*k_proj\", \"re:.*v_proj\"], \"re:.*input_layernorm\"\
+          ],\n        [[\"re:.*gate_proj\", \"re:.*up_proj\"], \"re:.*post_attention_layernorm\"\
+          ],\n        [[\"re:.*down_proj\"], \"re:.*up_proj\"]\n    ]\n\n    # Exercise\
+          \ left for the attendees:\n    # Add support for fp8 type\n    if quantization_type\
           \ == \"int8\":\n        recipe = [\n            SmoothQuantModifier(smoothing_strength=0.7,\
           \ ignore=ignore, mappings=mappings),\n            GPTQModifier(\n      \
           \          targets=[\"Linear\"],\n                ignore=ignore,\n     \
@@ -324,6 +646,23 @@ pipelineInfo:
 root:
   dag:
     tasks:
+      condition-branches-1:
+        componentRef:
+          name: comp-condition-branches-1
+        dependentTasks:
+        - createpvc
+        inputs:
+          parameters:
+            pipelinechannel--model_id:
+              componentInputParameter: model_id
+            pipelinechannel--model_s3_path:
+              componentInputParameter: model_s3_path
+            pipelinechannel--quantization_type:
+              componentInputParameter: quantization_type
+            pipelinechannel--use_s3_download:
+              componentInputParameter: use_s3_download
+        taskInfo:
+          name: condition-branches-1
       createpvc:
         cachingOptions:
           enableCache: true
@@ -335,9 +674,9 @@ root:
               runtimeValue:
                 constant:
                 - ReadWriteOnce
-            pvc_name_suffix:
+            pvc_name:
               runtimeValue:
-                constant: -quantization
+                constant: quantization-models-20251006-160118
             size:
               runtimeValue:
                 constant: 30Gi
@@ -352,39 +691,21 @@ root:
         componentRef:
           name: comp-deletepvc
         dependentTasks:
-        - createpvc
         - evaluate-model
         - upload-model
         inputs:
           parameters:
             pvc_name:
-              taskOutputParameter:
-                outputParameterKey: name
-                producerTask: createpvc
+              runtimeValue:
+                constant: quantization-models-20251006-160118
         taskInfo:
           name: deletepvc
-      download-model:
-        cachingOptions: {}
-        componentRef:
-          name: comp-download-model
-        dependentTasks:
-        - createpvc
-        inputs:
-          parameters:
-            model_id:
-              componentInputParameter: model_id
-            output_path:
-              runtimeValue:
-                constant: /models/base-model
-        taskInfo:
-          name: download-model
       evaluate-model:
         cachingOptions: {}
         componentRef:
           name: comp-evaluate-model
         dependentTasks:
-        - createpvc
-        - quantize-model
+        - condition-branches-1
         inputs:
           parameters:
             model_path:
@@ -392,32 +713,12 @@ root:
                 constant: /models/optimized-model
         taskInfo:
           name: evaluate-model
-      quantize-model:
-        cachingOptions: {}
-        componentRef:
-          name: comp-quantize-model
-        dependentTasks:
-        - createpvc
-        - download-model
-        inputs:
-          parameters:
-            model_path:
-              runtimeValue:
-                constant: /models/base-model
-            output_path:
-              runtimeValue:
-                constant: /models/optimized-model
-            quantization_type:
-              componentInputParameter: quantization_type
-        taskInfo:
-          name: quantize-model
       upload-model:
         cachingOptions: {}
         componentRef:
           name: comp-upload-model
         dependentTasks:
-        - createpvc
-        - quantize-model
+        - condition-branches-1
         inputs:
           parameters:
             model_path:
@@ -433,6 +734,10 @@ root:
         defaultValue: ibm-granite/granite-3.3-2b-instruct
         isOptional: true
         parameterType: STRING
+      model_s3_path:
+        defaultValue: ibm-granite/granite-3.3-2b-instruct
+        isOptional: true
+        parameterType: STRING
       output_path:
         defaultValue: granite-int4-pipeline
         isOptional: true
@@ -441,6 +746,10 @@ root:
         defaultValue: int4
         isOptional: true
         parameterType: STRING
+      use_s3_download:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
 schemaVersion: 2.1.0
 sdkVersion: kfp-2.9.0
 ---
@@ -448,42 +757,61 @@ platforms:
   kubernetes:
     deploymentSpec:
       executors:
-        exec-download-model:
+        exec-download-model-from-hf:
           pvcMount:
-          - mountPath: /models
-            taskOutputParameter:
-              outputParameterKey: name
-              producerTask: createpvc
+          - constant: quantization-models-20251006-160118
+            mountPath: /models
+          tolerations:
+          - effect: NoSchedule
+            key: nvidia.com/gpu
+            operator: Exists
+        exec-download-model-from-s3:
+          pvcMount:
+          - constant: quantization-models-20251006-160118
+            mountPath: /models
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: s3_access_key
+              secretKey: AWS_ACCESS_KEY_ID
+            - envVar: s3_secret_access_key
+              secretKey: AWS_SECRET_ACCESS_KEY
+            - envVar: s3_host
+              secretKey: AWS_S3_ENDPOINT
+            - envVar: s3_bucket
+              secretKey: AWS_S3_BUCKET
+            secretName: minio-models
           tolerations:
           - effect: NoSchedule
             key: nvidia.com/gpu
             operator: Exists
         exec-evaluate-model:
           pvcMount:
-          - mountPath: /models
-            taskOutputParameter:
-              outputParameterKey: name
-              producerTask: createpvc
+          - constant: quantization-models-20251006-160118
+            mountPath: /models
           tolerations:
           - effect: NoSchedule
             key: nvidia.com/gpu
             operator: Exists
         exec-quantize-model:
           pvcMount:
-          - mountPath: /models
-            taskOutputParameter:
-              outputParameterKey: name
-              producerTask: createpvc
+          - constant: quantization-models-20251006-160118
+            mountPath: /models
+          tolerations:
+          - effect: NoSchedule
+            key: nvidia.com/gpu
+            operator: Exists
+        exec-quantize-model-2:
+          pvcMount:
+          - constant: quantization-models-20251006-160118
+            mountPath: /models
           tolerations:
           - effect: NoSchedule
             key: nvidia.com/gpu
             operator: Exists
         exec-upload-model:
           pvcMount:
-          - mountPath: /models
-            taskOutputParameter:
-              outputParameterKey: name
-              producerTask: createpvc
+          - constant: quantization-models-20251006-160118
+            mountPath: /models
           secretAsEnv:
           - keyToEnv:
             - envVar: s3_access_key
