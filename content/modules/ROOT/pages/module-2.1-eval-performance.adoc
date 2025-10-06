@@ -185,8 +185,7 @@ export INFERENCE_ENDPOINT=$(oc get inferenceservice granite-8b -n vllm -o jsonpa
 ----
 
 NOTE: Make sure your granite-8b model is deployed on OpenShift AI. If you need to deploy it run: +
-`helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 \
-  --values workshop_code/deploy_vllm/vllm_rhoai_custom_2/values.yaml -n vllm`
+`helm upgrade -i granite-8b redhat-ai-services/vllm-kserve --version 0.5.11 --values workshop_code/deploy_vllm/vllm_rhoai_custom_1/values.yaml -n vllm`
 
 Run the pipeline with necessary parameters in a terminal. Accept the defaults when prompted. If you chose a different model, adjust the *target* parameter. 
 
@@ -205,6 +204,8 @@ tkn pipeline start guidellm-benchmark-pipeline -n vllm \
   --param max-concurrency="10" \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc  
 ----
+
+HINT: If the pipeline run fails with `HTTPStatusError: Server error '503 Service Unavailable'` for the provided INFERENCE_ENDPOINT, then check and fix the relevant network policy.  
 
 Download the benchmark results from the *guidellm-benchmark* bucket in Minio and open the *benchmark-<TIMESTAMP>.txt* in a text editor.
 
@@ -375,6 +376,7 @@ tkn pipeline start guidellm-benchmark-pipeline -n vllm \
 ----
 
 **Technical Consulting Value**: 
+
 - Establishes theoretical maximum capacity for infrastructure sizing
 - Identifies hardware bottlenecks and scaling limits
 - Provides baseline for capacity planning and cost modeling
@@ -399,6 +401,7 @@ tkn pipeline start guidellm-benchmark-pipeline -n vllm \
 ----
 
 **Technical Consulting Value**:
+
 - Validates performance under realistic sustained loads
 - Identifies latency degradation patterns as load increases
 - Supports SLA definition and performance guarantees
